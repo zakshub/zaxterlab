@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZaxterLab — SaaS Operations Platform (Form 3: Web App)</title>
+  <link rel="stylesheet" href="./saas.css" />
+</head>
+<body class="theme-dark">
+  <div id="saas-app">
+    <!-- Left Sidebar -->
+    <aside id="saas-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">Z</div>
+        <div class="brand-info">
+          <span class="brand-name">ZAXTERLAB</span>
+          <span class="brand-tier">SaaS Operations OS</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">OPERATIONS</div>
+        <button class="nav-item active" data-view="view-overview">
+          <span class="nav-icon">&#9635;</span> Dashboard Overview
+        </button>
+        <button class="nav-item" data-view="view-tasks">
+          <span class="nav-icon">&#9776;</span> Task Queue
+          <span class="nav-badge" id="badge-tasks-count">0</span>
+        </button>
+        <button class="nav-item" data-view="view-ventures">
+          <span class="nav-icon">&#9881;</span> SaaS Ventures Studio
+          <span class="nav-badge" id="badge-ventures-count">0</span>
+        </button>
+
+        <div class="nav-section-label">ORGANIZATION</div>
+        <button class="nav-item" data-view="view-specialists">
+          <span class="nav-icon">&#9830;</span> Specialist Workforce
+          <span class="nav-badge" id="badge-specialists-count">0</span>
+        </button>
+        <button class="nav-item" data-view="view-workspace">
+          <span class="nav-icon">&#128193;</span> Workspace Files
+        </button>
+        <button class="nav-item" data-view="view-audit">
+          <span class="nav-icon">&#9646;</span> Audit &amp; Compliance
+        </button>
+
+        <div class="nav-section-label">INTERFACE FORMS</div>
+        <a href="/" class="nav-link-item">
+          <span class="nav-icon">&bull;</span> Form 1: Zero-UI / CLI
+        </a>
+        <a href="/basic.html" class="nav-link-item">
+          <span class="nav-icon">&bull;</span> Form 2: Basic Desktop GUI
+        </a>
+        <a href="/saas.html" class="nav-link-item current">
+          <span class="nav-icon">&check;</span> Form 3: SaaS Web App (Active)
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="spend-card">
+          <div class="spend-title">Spend Limit Guarantee</div>
+          <div class="spend-amount" id="sidebar-spend">$0.00 / $0.00</div>
+          <div class="spend-sub">100% Hermetic &bull; Spend Guard Locked</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div id="saas-main">
+      <!-- Top Navigation Bar -->
+      <header id="saas-header">
+        <div class="header-left">
+          <span id="breadcrumb-section" class="breadcrumb-root">Dashboard</span>
+          <span class="breadcrumb-sep">/</span>
+          <span id="breadcrumb-view" class="breadcrumb-active">Overview</span>
+        </div>
+
+        <div class="header-center">
+          <div class="search-box">
+            <span class="search-icon">&#128269;</span>
+            <input type="text" id="global-search" placeholder="Search tasks, specialists, projects... (Ctrl+K)" />
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button id="btn-run-pipeline-header" class="btn btn-secondary">
+            <span>&#9658;</span> Run DAG Pipeline
+          </button>
+          <button id="btn-open-new-task" class="btn btn-primary">
+            <span>+</span> New Task
+          </button>
+          <button id="btn-refresh-header" class="btn btn-icon" title="Refresh all data">
+            &#8635;
+          </button>
+        </div>
+      </header>
+
+      <!-- View Container -->
+      <div id="saas-content">
+        <!-- 1. Overview View -->
+        <section id="view-overview" class="app-view active">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Operations Dashboard</h1>
+              <p class="view-subtitle">Real-time status of autonomous specialist agents, task pipelines, and SaaS deliverables.</p>
+            </div>
+            <div class="view-actions">
+              <button id="btn-evaluator-trigger" class="btn btn-secondary">
+                <span>&#9878;</span> Workload Evaluator
+              </button>
+              <button id="btn-internal-initiative" class="btn btn-secondary">
+                <span>&#9733;</span> Internal Initiative DAG
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">SYSTEM HEALTH</span>
+                <span class="status-indicator-dot green"></span>
+              </div>
+              <div class="kpi-value" id="kpi-health">HEALTHY</div>
+              <div class="kpi-sub">Standard Library HTTP Engine</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">TOTAL SPEND</span>
+                <span class="badge badge-success">LOCKED</span>
+              </div>
+              <div class="kpi-value green" id="kpi-spend">$0.00</div>
+              <div class="kpi-sub">Ceiling: $0.00 (Zero-Cost Invariant)</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">SPECIALIST WORKFORCE</span>
+                <span class="kpi-icon">&#9830;</span>
+              </div>
+              <div class="kpi-value" id="kpi-specialists">0</div>
+              <div class="kpi-sub" id="kpi-specialists-sub">Autonomous domain agents</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">TOTAL TASKS</span>
+                <span class="kpi-icon">&#9776;</span>
+              </div>
+              <div class="kpi-value" id="kpi-tasks">0</div>
+              <div class="kpi-sub" id="kpi-tasks-sub">Orchestrated DAG graph</div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">SAAS PROJECTS</span>
+                <span class="kpi-icon">&#9881;</span>
+              </div>
+              <div class="kpi-value" id="kpi-projects">0</div>
+              <div class="kpi-sub">5-Department ventures</div>
+            </div>
+          </div>
+
+          <!-- Dashboard Split Grids -->
+          <div class="overview-grid">
+            <!-- Left: Recent Tasks -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Recent Tasks</div>
+                <button class="btn btn-link" data-switch-to="view-tasks">View All &rarr;</button>
+              </div>
+              <div class="card-body no-padding">
+                <table class="saas-table" id="overview-tasks-table">
+                  <thead>
+                    <tr>
+                      <th>Title</th>
+                      <th>Specialist</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="overview-tasks-tbody">
+                    <tr><td colspan="4" class="empty-state">Loading tasks...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Right: Specialist Roster -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Active Specialist Team</div>
+                <button class="btn btn-link" data-switch-to="view-specialists">Manage Workforce &rarr;</button>
+              </div>
+              <div class="card-body no-padding">
+                <div class="specialists-mini-list" id="overview-specialists-list">
+                  <div class="empty-state">Loading specialists...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Tasks View -->
+        <section id="view-tasks" class="app-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Task Orchestration Queue</h1>
+              <p class="view-subtitle">Inspect, dispatch, and review task executions, dependencies, and auditor verifications.</p>
+            </div>
+            <div class="view-actions">
+              <div class="filter-group">
+                <button class="btn-filter active" data-filter="all">All</button>
+                <button class="btn-filter" data-filter="COMPLETED">Completed</button>
+                <button class="btn-filter" data-filter="RUNNING">Running</button>
+                <button class="btn-filter" data-filter="PENDING">Pending</button>
+              </div>
+              <button id="btn-create-task-view" class="btn btn-primary">+ Create Task</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body no-padding">
+              <table class="saas-table" id="tasks-full-table">
+                <thead>
+                  <tr>
+                    <th>Task ID</th>
+                    <th>Task Title &amp; Description</th>
+                    <th>Assigned Specialist</th>
+                    <th>Dependencies</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="tasks-full-tbody">
+                  <tr><td colspan="6" class="empty-state">Loading tasks...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. SaaS Ventures View -->
+        <section id="view-ventures" class="app-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">5-Department SaaS Ventures Studio</h1>
+              <p class="view-subtitle">End-to-end departmental delivery pipeline: Hadi (BA) &rarr; Sirfaraz (Arch) &rarr; Reem (Eng) &rarr; Aroosh (QA) &rarr; Zaks (Audit).</p>
+            </div>
+            <div class="view-actions">
+              <button id="btn-open-venture-modal" class="btn btn-primary">+ Launch New SaaS Venture</button>
+            </div>
+          </div>
+
+          <div class="ventures-grid" id="ventures-container">
+            <div class="empty-state">Loading projects...</div>
+          </div>
+        </section>
+
+        <!-- 4. Specialists View -->
+        <section id="view-specialists" class="app-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Specialist Workforce</h1>
+              <p class="view-subtitle">Inspect autonomous agents, permissions, allowed tools, and dynamically spawn missing domain specialists.</p>
+            </div>
+            <div class="view-actions">
+              <button id="btn-open-spawn-modal" class="btn btn-primary">+ Spawn Specialist</button>
+            </div>
+          </div>
+
+          <div class="specialist-cards-grid" id="specialists-container">
+            <div class="empty-state">Loading specialists...</div>
+          </div>
+        </section>
+
+        <!-- 5. Workspace Files View -->
+        <section id="view-workspace" class="app-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Sandboxed Workspace Explorer</h1>
+              <p class="view-subtitle">Browse generated artifacts, source code, specifications, and audit reports within <code>.zaxterlab_workspace</code>.</p>
+            </div>
+            <div class="view-actions">
+              <div class="breadcrumb-dir">
+                <button id="btn-ws-root-saas" class="btn btn-sm btn-secondary">&#8962; Root</button>
+                <span id="ws-breadcrumb-label" class="dir-path">./</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="workspace-explorer-layout">
+            <div class="explorer-tree-panel">
+              <div class="panel-header">Directory Contents</div>
+              <ul class="file-tree" id="saas-file-tree">
+                <li class="empty-state">Loading files...</li>
+              </ul>
+            </div>
+            <div class="explorer-viewer-panel">
+              <div class="panel-header" id="saas-file-viewer-header">Select a file to inspect disk contents</div>
+              <div class="code-container">
+                <pre id="saas-file-code">No file selected.</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. Audit & Compliance View -->
+        <section id="view-audit" class="app-view">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Immutable Audit Trail &amp; Forensic Logs</h1>
+              <p class="view-subtitle">Every operation, session, security check, and audit verdict is permanently recorded in SQLite with $0.00 spend verification.</p>
+            </div>
+            <div class="view-actions">
+              <button id="btn-refresh-audit-saas" class="btn btn-secondary">&#8635; Refresh Audit</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-body no-padding">
+              <table class="saas-table" id="saas-audit-table">
+                <thead>
+                  <tr>
+                    <th>Log ID</th>
+                    <th>Timestamp</th>
+                    <th>Event Type</th>
+                    <th>Entity ID</th>
+                    <th>Forensic Details</th>
+                  </tr>
+                </thead>
+                <tbody id="saas-audit-tbody">
+                  <tr><td colspan="5" class="empty-state">Loading audit logs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Side Drawer for Task Session & Trace Details -->
+    <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+    <aside id="task-drawer" class="task-drawer hidden">
+      <div class="drawer-header">
+        <h3 id="drawer-task-title">Task Details</h3>
+        <button id="btn-close-drawer" class="btn-icon">&times;</button>
+      </div>
+      <div class="drawer-body" id="drawer-task-body">
+        <!-- Injected via JS -->
+      </div>
+    </aside>
+
+    <!-- Modal 1: Create Task -->
+    <div id="modal-task" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Create New Task</h3>
+          <button class="btn-icon btn-close-modal" data-modal="modal-task">&times;</button>
+        </div>
+        <form id="form-create-task-modal">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="modal-task-title">Task Title *</label>
+              <input type="text" id="modal-task-title" required placeholder="e.g. Implement OAuth2 Refresh Token Rotation" />
+            </div>
+            <div class="form-group">
+              <label for="modal-task-spec">Assign Specialist *</label>
+              <select id="modal-task-spec" required></select>
+            </div>
+            <div class="form-group">
+              <label for="modal-task-desc">Task Description &amp; Scope</label>
+              <textarea id="modal-task-desc" rows="3" placeholder="Provide detailed specifications, acceptance criteria, or constraints..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="modal-task-deps">Dependencies (Comma-separated Task IDs)</label>
+              <input type="text" id="modal-task-deps" placeholder="e.g. task_abc123, task_def456" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-task">Cancel</button>
+            <button type="submit" name="action" value="create" class="btn btn-secondary">Create Only</button>
+            <button type="submit" name="action" value="execute" class="btn btn-primary">Create &amp; Execute Now</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 2: Launch SaaS Venture -->
+    <div id="modal-venture" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Launch 5-Department SaaS Venture</h3>
+          <button class="btn-icon btn-close-modal" data-modal="modal-venture">&times;</button>
+        </div>
+        <form id="form-launch-venture-modal">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="modal-venture-name">SaaS Product Name *</label>
+              <input type="text" id="modal-venture-name" required placeholder="e.g. ApexMetrics Analytics Engine" />
+            </div>
+            <div class="form-group">
+              <label for="modal-venture-domain">Industry / Domain *</label>
+              <input type="text" id="modal-venture-domain" required placeholder="e.g. Real-Time Telemetry & B2B SaaS" />
+            </div>
+            <div class="form-group">
+              <label for="modal-venture-reqs">Customer &amp; Technical Requirements *</label>
+              <textarea id="modal-venture-reqs" rows="4" required placeholder="Describe core features, data structures, authentication model, and verification criteria..."></textarea>
+            </div>
+            <div class="info-alert">
+              <strong>Departmental Pipeline Execution:</strong>
+              1. Hadi (BA) &rarr; PRD.md &bull; 2. Sirfaraz (Arch) &rarr; ARCHITECTURE.md &bull; 3. Reem (Eng) &rarr; app.py &bull; 4. Aroosh (QA) &rarr; test_suite.py &bull; 5. Zaks (Audit) &rarr; AUDIT_REPORT.md.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-venture">Cancel</button>
+            <button type="submit" class="btn btn-primary">&#9881; Execute 5-Department Delivery</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal 3: Spawn Specialist -->
+    <div id="modal-spawn" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Spawn Missing Specialist</h3>
+          <button class="btn-icon btn-close-modal" data-modal="modal-spawn">&times;</button>
+        </div>
+        <form id="form-spawn-specialist-modal">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="modal-spawn-name">Specialist Name *</label>
+              <input type="text" id="modal-spawn-name" required placeholder="e.g. Tariq" />
+            </div>
+            <div class="form-group">
+              <label for="modal-spawn-role">Role Title *</label>
+              <input type="text" id="modal-spawn-role" required placeholder="e.g. Security & Penetration Specialist" />
+            </div>
+            <div class="form-group">
+              <label for="modal-spawn-dept">Department *</label>
+              <input type="text" id="modal-spawn-dept" required value="Engineering" />
+            </div>
+            <div class="form-group">
+              <label for="modal-spawn-gap">Capability Gap &amp; Justification *</label>
+              <input type="text" id="modal-spawn-gap" required placeholder="Why existing specialists cannot fulfill this requirement..." />
+            </div>
+            <div class="form-group">
+              <label for="modal-spawn-tools">Allowed Tools</label>
+              <input type="text" id="modal-spawn-tools" value="read_file,write_file,run_tests" />
+            </div>
+            <div class="checkbox-group">
+              <label>
+                <input type="checkbox" id="modal-spawn-approve" checked />
+                Auto-approve and register immediately into SQLite workforce registry
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-spawn">Cancel</button>
+            <button type="submit" class="btn btn-primary">Spawn &amp; Register Specialist</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="./saas.js"></script>
+</body>
+</html>
