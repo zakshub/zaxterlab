@@ -20,11 +20,15 @@ from zaxterlab.security.guard import (
     WorkspacePathViolationError,
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DEFAULT_FRONTEND_DIR = (PROJECT_ROOT / "frontend" / "public").resolve()
+
 
 class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
     """HTTP request handler routing requests to APIHandlerService."""
 
     service: APIHandlerService
+    frontend_dir: Path = DEFAULT_FRONTEND_DIR
 
     def log_message(self, format: str, *args: Any) -> None:
         """Silence default stderr log spam; keep execution hermetic."""
@@ -50,11 +54,17 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
             self._set_headers(200, content_type="application/json; charset=utf-8")
             return
 
-        frontend_dir = Path("/root/zakxterlab/frontend/public")
+        frontend_dir = getattr(self, "frontend_dir", DEFAULT_FRONTEND_DIR).resolve()
         req_file = path.lstrip("/")
         if not req_file or req_file == "":
             req_file = "index.html"
         target_file = (frontend_dir / req_file).resolve()
+        try:
+            target_file.relative_to(frontend_dir)
+        except ValueError:
+            self._set_headers(403, content_type="text/plain; charset=utf-8")
+            return
+
         if target_file.exists() and target_file.is_file():
             content_types = {
                 ".html": "text/html; charset=utf-8",
@@ -160,7 +170,7 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
             return
 
         # 2. Static Frontend Serving
-        frontend_dir = Path("/root/zakxterlab/frontend/public")
+        frontend_dir = getattr(self, "frontend_dir", DEFAULT_FRONTEND_DIR).resolve()
         req_file = path.lstrip("/")
         if not req_file or req_file == "":
             req_file = "index.html"
@@ -289,6 +299,7 @@ class ZaxterLabAPIServer:
             pass
 
         CustomHandler.service = service
+        CustomHandler.frontend_dir = getattr(service, "frontend_dir", DEFAULT_FRONTEND_DIR)
         self.httpd = HTTPServer((host, port), CustomHandler)
         self._thread: Optional[threading.Thread] = None
 

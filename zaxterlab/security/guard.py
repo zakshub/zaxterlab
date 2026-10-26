@@ -103,12 +103,20 @@ class CommandGuard:
         ("python3", "-m", "unittest"),
         ("python3", "-c"),
         ("python3",),
+        ("python", "-m", "unittest"),
+        ("python", "-c"),
+        ("python",),
+        ("py", "-m", "unittest"),
+        ("py", "-c"),
+        ("py",),
         ("git", "status"),
         ("git", "diff"),
         ("git", "log"),
         ("ls",),
+        ("dir",),
         ("echo",),
         ("cat",),
+        ("type",),
     )
 
     @classmethod
@@ -133,9 +141,19 @@ class CommandGuard:
                     f"Forbidden command token detected: '{token}' is blocked by CommandGuard."
                 )
 
+        # Cross-platform normalization for python binaries (e.g. C:\...\python.exe, py.exe, python3)
+        raw_first = Path(tokens[0]).name.lower()
+        if raw_first in ("python.exe", "python3.exe", "py.exe", "python", "python3", "py"):
+            norm_tokens = ("python",) + tuple(tokens[1:])
+        else:
+            norm_tokens = tuple(tokens)
+
         # Check if the command matches any allowed prefix
         matches_prefix = False
         for prefix in cls.ALLOWED_PREFIXES:
+            if len(norm_tokens) >= len(prefix) and norm_tokens[:len(prefix)] == prefix:
+                matches_prefix = True
+                break
             if len(tokens) >= len(prefix) and tuple(tokens[:len(prefix)]) == prefix:
                 matches_prefix = True
                 break

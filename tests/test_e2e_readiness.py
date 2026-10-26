@@ -98,7 +98,11 @@ class TestEndToEndReadiness(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
-        self.tmp_dir.cleanup()
+        self.store.close()
+        try:
+            self.tmp_dir.cleanup()
+        except Exception:
+            pass
 
     def test_complete_e2e_scaling_pipeline_and_telemetry(self) -> None:
         """Full organizational workflow:

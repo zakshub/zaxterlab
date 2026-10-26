@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -112,6 +114,12 @@ class ToolRegistry:
         """Run an authorized safe command inside the workspace directory."""
         tokens = self.boundary_guard.command.validate_command(command)
         workspace_cwd = str(self.boundary_guard.workspace.workspace_root)
+
+        # Cross-platform Python executable resolution (ensures Windows uses sys.executable if python3 is missing/alias)
+        first_cmd = Path(tokens[0]).name.lower()
+        if first_cmd in ("python", "python.exe", "python3", "python3.exe", "py", "py.exe"):
+            if sys.platform == "win32" or not shutil.which(tokens[0]):
+                tokens = [sys.executable] + tokens[1:]
 
         result = subprocess.run(
             tokens,

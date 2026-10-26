@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -79,10 +80,11 @@ class TestToolsAndBoundaries(unittest.TestCase):
         self.assertIn("Security violation", res_abs.error)
 
     def test_safe_command_execution(self):
+        py_cmd = f'"{sys.executable}" -c "print(10 + 20)"'
         cmd_call = ToolCall(
             call_id="c6",
             tool_name="run_command",
-            arguments={"command": 'python3 -c "print(10 + 20)"'},
+            arguments={"command": py_cmd},
         )
         res = self.tools.execute(cmd_call)
         self.assertTrue(res.success)

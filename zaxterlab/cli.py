@@ -14,11 +14,15 @@ from zaxterlab.tools.registry import ToolRegistry
 
 
 def main() -> None:
+    cwd = Path.cwd()
+    default_db = str(cwd / "zaxterlab.db")
+    default_workspace = str(cwd / "workspace")
+
     parser = argparse.ArgumentParser(description="ZaxterLab AI Company Operating System Server")
     parser.add_argument("--host", default="127.0.0.1", help="Host interface (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
-    parser.add_argument("--db", default="/root/zakxterlab/zaxterlab.db", help="SQLite database path")
-    parser.add_argument("--workspace", default="/root/zakxterlab/workspace", help="Sandboxed workspace directory")
+    parser.add_argument("--db", default=default_db, help=f"SQLite database path (default: {default_db})")
+    parser.add_argument("--workspace", default=default_workspace, help=f"Sandboxed workspace directory (default: {default_workspace})")
     args = parser.parse_args()
 
     # Create workspace if not existing
