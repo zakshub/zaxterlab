@@ -8,12 +8,16 @@ from pathlib import Path
 from typing import Any, Optional
 
 from zaxterlab.contracts.types import (
+    PermissionTier,
+    ProposalStatus,
     Session,
     SessionStatus,
+    SpawningProposal,
     StepTrace,
     Task,
     TaskStatus,
     TokenUsage,
+    TradeoffChoice,
 )
 
 
@@ -84,9 +88,26 @@ class SQLiteStore:
                     details_json TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS spawning_proposals (
+                    proposal_id TEXT PRIMARY KEY,
+                    target_role_name TEXT NOT NULL,
+                    target_role_title TEXT NOT NULL,
+                    archetype TEXT NOT NULL,
+                    recommended_permission_tier TEXT NOT NULL,
+                    recommended_tools_json TEXT NOT NULL,
+                    tradeoff_choice TEXT NOT NULL,
+                    empirical_justification TEXT NOT NULL,
+                    tradeoff_analysis_json TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    decided_at TEXT,
+                    decision_reason TEXT
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
                 CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id);
                 CREATE INDEX IF NOT EXISTS idx_step_traces_session ON step_traces(session_id);
+                CREATE INDEX IF NOT EXISTS idx_proposals_status ON spawning_proposals(status);
                 """
             )
 
@@ -338,3 +359,80 @@ class SQLiteStore:
                 }
             )
         return logs
+
+    # --- Spawning Proposal Operations ---
+
+    def save_proposal(self, proposal: SpawningProposal) -> None:
+        """Insert or update a spawning proposal."""
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO spawning_proposals (
+                    proposal_id, target_role_name, target_role_title, archetype,
+                    recommended_permission_tier, recommended_tools_json,
+                    tradeoff_choice, empirical_justification, tradeoff_analysis_json,
+                    status, created_at, decided_at, decision_reason
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(proposal_id) DO UPDATE SET
+                    status = excluded.status,
+                    decided_at = excluded.decided_at,
+                    decision_reason = excluded.decision_reason
+                """,
+                (
+                    proposal.proposal_id,
+                    proposal.target_role_name,
+                    proposal.target_role_title,
+                    proposal.archetype,
+                    proposal.recommended_permission_tier.value,
+                    json.dumps(proposal.recommended_tools),
+                    proposal.tradeoff_choice.value,
+                    proposal.empirical_justification,
+                    json.dumps(proposal.tradeoff_analysis),
+                    proposal.status.value,
+                    proposal.created_at,
+                    proposal.decided_at,
+                    proposal.decision_reason,
+                ),
+            )
+
+    def get_proposal(self, proposal_id: str) -> Optional[SpawningProposal]:
+        """Fetch proposal by ID."""
+        cursor = self._conn.execute(
+            "SELECT * FROM spawning_proposals WHERE proposal_id = ?",
+            (proposal_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_proposal(row)
+
+    def list_proposals(self, status: Optional[ProposalStatus] = None) -> list[SpawningProposal]:
+        """List proposals, optionally filtered by status."""
+        if status:
+            cursor = self._conn.execute(
+                "SELECT * FROM spawning_proposals WHERE status = ? ORDER BY created_at DESC",
+                (status.value,),
+            )
+        else:
+            cursor = self._conn.execute(
+                "SELECT * FROM spawning_proposals ORDER BY created_at DESC"
+            )
+
+        return [self._row_to_proposal(row) for row in cursor.fetchall()]
+
+    def _row_to_proposal(self, row: sqlite3.Row) -> SpawningProposal:
+        return SpawningProposal(
+            proposal_id=row["proposal_id"],
+            target_role_name=row["target_role_name"],
+            target_role_title=row["target_role_title"],
+            archetype=row["archetype"],
+            recommended_permission_tier=PermissionTier(row["recommended_permission_tier"]),
+            recommended_tools=json.loads(row["recommended_tools_json"]),
+            tradeoff_choice=TradeoffChoice(row["tradeoff_choice"]),
+            empirical_justification=row["empirical_justification"],
+            tradeoff_analysis=json.loads(row["tradeoff_analysis_json"]),
+            status=ProposalStatus(row["status"]),
+            created_at=row["created_at"],
+            decided_at=row["decided_at"],
+            decision_reason=row["decision_reason"],
+        )

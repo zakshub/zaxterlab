@@ -125,6 +125,16 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                     entity_id = query.get("entity_id", [None])[0]
                     self._send_json(self.service.get_audit_logs(entity_id))
 
+                elif path == "/api/completion":
+                    self._send_json(self.service.get_completion_status())
+
+                elif path == "/api/evaluator/status":
+                    self._send_json(self.service.get_evaluator_status())
+
+                elif path == "/api/evaluator/proposals":
+                    status = query.get("status", [None])[0]
+                    self._send_json(self.service.list_proposals(status=status))
+
                 else:
                     self._send_error("NOT_FOUND", f"Endpoint '{path}' not found.", 404)
 
@@ -215,6 +225,21 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                         self._send_error("NOT_FOUND", f"Unknown session action: '{action}'.", 404)
                 else:
                     self._send_error("NOT_FOUND", "Unknown session endpoint", 404)
+
+            elif path.startswith("/api/evaluator/proposals/"):
+                parts = path.split("/")
+                # /api/evaluator/proposals/{proposal_id}/{action}
+                if len(parts) == 6:
+                    proposal_id = parts[4]
+                    action = parts[5]
+                    if action == "approve":
+                        self._send_json(self.service.approve_proposal(proposal_id, body))
+                    elif action == "reject":
+                        self._send_json(self.service.reject_proposal(proposal_id, body))
+                    else:
+                        self._send_error("NOT_FOUND", f"Unknown proposal action: '{action}'.", 404)
+                else:
+                    self._send_error("NOT_FOUND", "Unknown proposal endpoint", 404)
 
             else:
                 self._send_error("NOT_FOUND", f"Endpoint '{path}' not found.", 404)

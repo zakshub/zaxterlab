@@ -314,3 +314,78 @@ class Session:
             created_at=str(data.get("created_at", utc_now_iso())),
             updated_at=str(data.get("updated_at", utc_now_iso())),
         )
+
+
+class TradeoffChoice(str, Enum):
+    """3-Way Trade-off decision for workload pressure."""
+
+    PROMPT_TOOL_REFINEMENT = "PROMPT_TOOL_REFINEMENT"
+    REUSE_EXISTING_WORKER = "REUSE_EXISTING_WORKER"
+    PROPOSE_SPECIALIST = "PROPOSE_SPECIALIST"
+
+
+class ProposalStatus(str, Enum):
+    """Lifecycle status for a role spawning proposal."""
+
+    PENDING_APPROVAL = "PENDING_APPROVAL"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
+@dataclass
+class SpawningProposal:
+    """Formal recommendation authored by SpecializationEvaluator for human owner review."""
+
+    proposal_id: str
+    target_role_name: str
+    target_role_title: str
+    archetype: str
+    recommended_permission_tier: PermissionTier
+    recommended_tools: list[str]
+    tradeoff_choice: TradeoffChoice
+    empirical_justification: str
+    tradeoff_analysis: dict[str, str]
+    status: ProposalStatus = ProposalStatus.PENDING_APPROVAL
+    created_at: str = field(default_factory=utc_now_iso)
+    decided_at: Optional[str] = None
+    decision_reason: Optional[str] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "proposal_id": self.proposal_id,
+            "target_role_name": self.target_role_name,
+            "target_role_title": self.target_role_title,
+            "archetype": self.archetype,
+            "recommended_permission_tier": self.recommended_permission_tier.value,
+            "recommended_tools": list(self.recommended_tools),
+            "tradeoff_choice": self.tradeoff_choice.value,
+            "empirical_justification": self.empirical_justification,
+            "tradeoff_analysis": dict(self.tradeoff_analysis),
+            "status": self.status.value,
+            "created_at": self.created_at,
+            "decided_at": self.decided_at,
+            "decision_reason": self.decision_reason,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> SpawningProposal:
+        return cls(
+            proposal_id=str(data.get("proposal_id", "")),
+            target_role_name=str(data.get("target_role_name", "")),
+            target_role_title=str(data.get("target_role_title", "")),
+            archetype=str(data.get("archetype", "")),
+            recommended_permission_tier=PermissionTier(
+                data.get("recommended_permission_tier", PermissionTier.TIER_1_SAFE.value)
+            ),
+            recommended_tools=list(data.get("recommended_tools", [])),
+            tradeoff_choice=TradeoffChoice(
+                data.get("tradeoff_choice", TradeoffChoice.PROPOSE_SPECIALIST.value)
+            ),
+            empirical_justification=str(data.get("empirical_justification", "")),
+            tradeoff_analysis=dict(data.get("tradeoff_analysis", {})),
+            status=ProposalStatus(data.get("status", ProposalStatus.PENDING_APPROVAL.value)),
+            created_at=str(data.get("created_at", utc_now_iso())),
+            decided_at=data.get("decided_at"),
+            decision_reason=data.get("decision_reason"),
+        )
+

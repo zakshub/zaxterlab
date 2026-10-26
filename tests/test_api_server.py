@@ -155,6 +155,43 @@ class TestAPIServer(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("audit_logs", logs_res)
 
+    def test_completion_endpoint(self):
+        status, comp_res = self._http_get("/api/completion")
+        self.assertEqual(status, 200)
+        self.assertIn("overall_completion_pct", comp_res)
+        self.assertIn("pillars", comp_res)
+        self.assertIn("capabilities", comp_res)
+        self.assertEqual(comp_res["overall_completion_pct"], 88)
+
+    def test_evaluator_api_endpoints(self):
+        # 1. Check evaluator status
+        status, eval_res = self._http_get("/api/evaluator/status")
+        self.assertEqual(status, 200)
+        self.assertIn("decision", eval_res)
+        self.assertIn("telemetry", eval_res)
+
+        # 2. Trigger proposal by seeding auditor rejections in store
+        self.store.log_audit("AUDITOR_REJECTED", "task_fail_1", {"err": "test fail"})
+        self.store.log_audit("AUDITOR_REJECTED", "task_fail_2", {"err": "test fail"})
+
+        status, eval_res = self._http_get("/api/evaluator/status")
+        self.assertEqual(status, 200)
+        self.assertEqual(eval_res["decision"], "PROPOSE_SPECIALIST")
+        proposal_id = eval_res["proposal"]["proposal_id"]
+
+        # 3. List proposals
+        status, prop_list = self._http_get("/api/evaluator/proposals")
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(len(prop_list["proposals"]), 1)
+
+        # 4. Approve proposal via API
+        status, app_res = self._http_post(
+            f"/api/evaluator/proposals/{proposal_id}/approve",
+            {"approver": "Zak", "reason": "Approved in API test"},
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(app_res["proposal"]["status"], "APPROVED")
+
     def test_static_frontend_serving(self):
         # 1. Root serves index.html
         req = Request(f"{self.base_url}/", method="GET")
