@@ -3,62 +3,97 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZaxterLab — Immersive Intelligence World & AI Company OS</title>
-    <!-- Fonts -->
+    <title>ZaxterLab — J.A.R.V.I.S. 360° Holographic & Resn WebGL Experience</title>
+    <!-- Fonts: Orbitron (Sci-Fi HUD), JetBrains Mono (Telemetry), Inter (UI) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS (Offline-safe CDN with local fallback) -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ZaxterLab Light-Mode Immersive Design System Tokens -->
+    <!-- Three.js WebGL 3D Engine (with built-in 3D projection fallback if offline) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- ZaxterLab J.A.R.V.I.S. 360° Holographic Design System Tokens -->
     <link rel="stylesheet" href="./design-tokens.css" />
     <style>
-      :root {
-        --bg-page: #FBF9F5;
-        --bg-sidebar: #F4F1EA;
-        --bg-sidebar-active: #FFFFFF;
-        --bg-card: #FFFFFF;
-        --border-subtle: #E6E1D6;
-        --border-sidebar: #DFD9CC;
-        --accent-blue: #0B6BCB;
-        --accent-emerald: #15803D;
-        --text-primary: #141923;
-        --text-secondary: #3E4C59;
-      }
       * {
         box-sizing: border-box;
       }
       body {
         margin: 0;
         padding: 0;
-        background-color: var(--bg-page);
-        color: var(--text-primary);
+        background-color: #030814;
+        color: #E2F8FF;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         overflow: hidden;
         height: 100vh;
         width: 100vw;
       }
+      .font-hud {
+        font-family: 'Orbitron', 'JetBrains Mono', monospace;
+        letter-spacing: 0.06em;
+      }
       code, pre, .font-mono {
         font-family: 'JetBrains Mono', monospace;
+      }
+      /* Custom Resn × J.A.R.V.I.S. Magnetic Holographic Reticle Cursor */
+      #jarvis-cursor-ring {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 38px;
+        height: 38px;
+        border: 1.5px solid rgba(0, 240, 255, 0.75);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+        transform: translate(-50%, -50%);
+        transition: width 0.18s ease, height 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: 0 0 14px rgba(0, 240, 255, 0.35), inset 0 0 8px rgba(0, 240, 255, 0.2);
+      }
+      #jarvis-cursor-ring::after {
+        content: "";
+        position: absolute;
+        inset: 5px;
+        border: 1px dashed rgba(255, 184, 0, 0.65);
+        border-radius: 50%;
+        animation: jarvis-spin-cw 6s linear infinite;
+      }
+      #jarvis-cursor-dot {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 6px;
+        height: 6px;
+        background: #00F0FF;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 10000;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 10px #00F0FF, 0 0 20px #FFB800;
       }
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(244, 241, 234, 0.8);
+        background: rgba(3, 8, 20, 0.9);
       }
       ::-webkit-scrollbar-thumb {
-        background: #CBC4B5;
+        background: rgba(0, 240, 255, 0.35);
         border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #9E9686;
+        background: rgba(0, 240, 255, 0.75);
       }
     </style>
   </head>
-  <body class="bg-[#FBF9F5] text-[#141923] antialiased overflow-hidden selection:bg-sky-200 selection:text-slate-950">
-    <div id="root"></div>
+  <body class="jarvis-holo-mode bg-[#030814] text-[#E2F8FF] antialiased overflow-hidden selection:bg-cyan-400 selection:text-slate-950">
+    <!-- Full-Screen Interactive WebGL / 3D Generative Particle & Shader Canvas -->
+    <canvas id="jarvis-particle-canvas" class="fixed inset-0 pointer-events-none z-10"></canvas>
+    <!-- Custom Resn × J.A.R.V.I.S. Physics Reticle Cursor -->
+    <div id="jarvis-cursor-ring" class="hidden md:block"></div>
+    <div id="jarvis-cursor-dot" class="hidden md:block"></div>
+    <div id="root" class="relative z-20"></div>
 
     <!-- Application Script Entry -->
     <script type="module" src="./app.js"></script>

@@ -24,6 +24,12 @@ const state = {
   isBrainDrawerOpen: false,
   isSpawnModalOpen: false,
   internalProjectRunning: false,
+  jarvisChapter: 1, // 1: Genesis Helix | 2: Cortical Matrix | 3: Toroidal Vortex | 4: Aegis Stress-Test
+  jarvisOrbitDeg: 0,
+  jarvisAutoOrbit: true,
+  jarvisTiltX: 14,
+  jarvisTiltY: 0,
+  jarvisAudioEnabled: true,
   health: null,
   completion: null,
   telemetry: null,
@@ -1105,6 +1111,9 @@ function render() {
     ${state.activeFileViewer ? renderFileViewerModal() : ''}
     ${state.isTourOpen ? renderTourModal() : ''}
   `;
+  if (typeof updateOrbitalDomPositions === 'function') {
+    setTimeout(updateOrbitalDomPositions, 0);
+  }
 }
 
 function renderNavItem(tabKey, label, iconSvg) {
@@ -1391,257 +1400,369 @@ function getEffectiveWorldState() {
   };
 }
 
-// --- IMMERSIVE INTELLIGENCE WORLD VIEW ---
+// --- J.A.R.V.I.S. 360° HOLOGRAPHIC & RESN 3D GENERATIVE CHAPTERS ---
+const RESN_CHAPTERS = [
+  {
+    id: 1,
+    code: 'CH-01 // GENESIS HELIX',
+    title: 'DNA Requirement Code & Synaptic Strands',
+    lead: 'Hadi & Sirfaraz',
+    desc: 'Inspired by Corn Revolution: 1,400 photonic particles form a rotating 3D double-helix encoding customer & strategic briefs into a topological DAG.',
+    freq: '432.0 Hz',
+    stress: 'NOMINAL (0.00 USD)',
+  },
+  {
+    id: 2,
+    code: 'CH-02 // CORTICAL MATRIX',
+    title: 'J.A.R.V.I.S. Geodesic Arc-Brain Sphere',
+    lead: 'Musab & Hania',
+    desc: 'Multi-shell Fibonacci geodesic neural core with counter-rotating 3D gyroscope rings, volumetric holographic glitter, and 11 cognitive states.',
+    freq: '864.4 Hz',
+    freqColor: '#00F0FF',
+    stress: 'SYNCHRONIZED',
+  },
+  {
+    id: 3,
+    code: 'CH-03 // TOROIDAL VORTEX',
+    title: '360° Multi-Worker Tokamak Accelerator',
+    lead: 'Reem & Aroosh',
+    desc: 'High-velocity 3D trefoil torus-knot particle accelerator routing code, unit tests, and verification pulses across all 7 orbital specialist pods.',
+    freq: '1.28 THz',
+    stress: 'HIGH THROUGHPUT',
+  },
+  {
+    id: 4,
+    code: 'CH-04 // AEGIS STRESS-TEST',
+    title: '80+ MPH Anomaly Wind & Boundary Shield',
+    lead: 'Zaks (Chief Auditor)',
+    desc: 'Environmental resilience test: subjects the 3D core to a high-velocity particle storm while the golden geodesic shield deflects every violation.',
+    freq: '3.00 GJ/s',
+    stress: 'SHIELD 100% LOCKED',
+  },
+];
+
+// --- WEB AUDIO API J.A.R.V.I.S. PROCEDURAL SOUND & VOICE ENGINE ---
+let jarvisAudioCtx = null;
+function playJarvisSound(type = 'chirp') {
+  if (!state.jarvisAudioEnabled) return;
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!jarvisAudioCtx) jarvisAudioCtx = new AudioCtx();
+    if (jarvisAudioCtx.state === 'suspended') jarvisAudioCtx.resume();
+
+    const now = jarvisAudioCtx.currentTime;
+    const osc = jarvisAudioCtx.createOscillator();
+    const gain = jarvisAudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(jarvisAudioCtx.destination);
+
+    if (type === 'chirp') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1850, now);
+      osc.frequency.exponentialRampToValueAtTime(2950, now + 0.045);
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.055);
+    } else if (type === 'lock') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(1040, now + 0.14);
+      gain.gain.setValueAtTime(0.07, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.start(now);
+      osc.stop(now + 0.17);
+    } else if (type === 'morph') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.28);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.start(now);
+      osc.stop(now + 0.32);
+    }
+  } catch (_) {}
+}
+
+window.toggleJarvisAudio = () => {
+  state.jarvisAudioEnabled = !state.jarvisAudioEnabled;
+  if (state.jarvisAudioEnabled) playJarvisSound('lock');
+  showToast(`J.A.R.V.I.S. Holographic Audio & Voice: ${state.jarvisAudioEnabled ? 'ONLINE' : 'MUTED'}`);
+  render();
+};
+
+window.speakJarvisBriefing = () => {
+  playJarvisSound('morph');
+  const ch = RESN_CHAPTERS.find((c) => c.id === state.jarvisChapter) || RESN_CHAPTERS[0];
+  const msgText = `J.A.R.V.I.S. 360 Holographic Core online. Active chapter: ${ch.title}. Seven specialists orbiting in 360 degree formation. Zero dollar spend lock verified.`;
+  showToast(`🎙 J.A.R.V.I.S.: "${msgText}"`);
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(msgText);
+      utter.rate = 1.04;
+      utter.pitch = 0.96;
+      window.speechSynthesis.speak(utter);
+    }
+  } catch (_) {}
+};
+
+window.setJarvisChapter = (chId) => {
+  state.jarvisChapter = Number(chId) || 1;
+  playJarvisSound('morph');
+  const ch = RESN_CHAPTERS.find((c) => c.id === state.jarvisChapter) || RESN_CHAPTERS[0];
+  showToast(`3D Generative Matrix morphed to ${ch.code}: ${ch.title}`);
+  render();
+};
+
+window.toggleJarvisAutoOrbit = () => {
+  state.jarvisAutoOrbit = !state.jarvisAutoOrbit;
+  playJarvisSound('lock');
+  render();
+};
+
+window.setJarvisOrbitDeg = (deg) => {
+  state.jarvisOrbitDeg = ((Number(deg) % 360) + 360) % 360;
+  state.jarvisAutoOrbit = false;
+  updateOrbitalDomPositions();
+};
+
+// --- IMMERSIVE INTELLIGENCE WORLD VIEW (J.A.R.V.I.S. 360° × RESN WEBGL) ---
 function renderWorldTab() {
   const world = getEffectiveWorldState();
   const brain = world.brain || {};
   const activeBrainState = state.brainStateOverride || brain.visual_state || 'IDLE_OBSERVING';
   const brainMeta = BRAIN_STATES_META[activeBrainState] || BRAIN_STATES_META.IDLE_OBSERVING;
   const specialists = world.specialists || [];
-
-  const findSpec = (name) => specialists.find((s) => s.name.toLowerCase() === name.toLowerCase()) || specialists[0];
-  const hadi = findSpec('Hadi');
-  const hania = findSpec('Hania');
-  const sirfaraz = findSpec('Sirfaraz');
-  const musab = findSpec('Musab');
-  const reem = findSpec('Reem');
-  const aroosh = findSpec('Aroosh');
-  const zaks = findSpec('Zaks');
+  const activeChapter = RESN_CHAPTERS.find((c) => c.id === state.jarvisChapter) || RESN_CHAPTERS[0];
 
   return `
-    <div class="space-y-7 max-w-7xl mx-auto">
-      <!-- 1. EXECUTIVE WORLD COMMAND RIBBON -->
-      <div class="bg-white rounded-2xl p-5 border border-[#DFD9CC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+    <div class="space-y-6 max-w-7xl mx-auto">
+      <!-- 1. J.A.R.V.I.S. MARK LXXXV COMMAND HUD RIBBON -->
+      <div class="rounded-2xl p-4 border border-cyan-400/40 bg-[#051129]/85 backdrop-blur-xl shadow-[0_0_35px_rgba(0,240,255,0.12)] flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-2xl shadow-xs">
-            🌐
+          <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-400/60 flex flex-col items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.35)]">
+            <div class="flex items-end gap-0.5 h-5">
+              <span class="jarvis-eq-bar"></span>
+              <span class="jarvis-eq-bar"></span>
+              <span class="jarvis-eq-bar"></span>
+              <span class="jarvis-eq-bar"></span>
+              <span class="jarvis-eq-bar"></span>
+            </div>
+            <span class="text-[8px] font-hud text-cyan-300 mt-0.5">360°</span>
           </div>
           <div>
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Internal Strategic Initiative Active
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[10px] font-hud uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/50">
+                J.A.R.V.I.S. 360° HOLOGRAPHIC ENGINE × RESN GENERATIVE 3D
               </span>
-              <span class="text-[10px] font-mono text-[#64748B]">proj_zaxterlab_immersive_world</span>
+              <span class="text-[10px] font-mono text-amber-400">● ${activeChapter.code}</span>
             </div>
-            <h2 class="text-base font-extrabold text-[#141923] mt-1">
-              ZaxterLab — Immersive Intelligence World Transformation
+            <h2 class="text-base font-extrabold font-hud text-cyan-50 mt-1">
+              ${activeChapter.title}
             </h2>
-            <p class="text-xs text-[#3E4C59] mt-0.5">
-              ${brain.status_headline || 'Central Brain coordinating 7 active specialists across 7 departments in light-mode daylight space.'}
+            <p class="text-xs text-sky-300/90 mt-0.5 max-w-2xl">
+              ${activeChapter.desc}
             </p>
           </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2.5">
-          <button onclick="window.setTab('initiative')" class="px-3.5 py-2 rounded-xl bg-[#F4F1EA] hover:bg-[#E6E1D6] text-[#141923] border border-[#DFD9CC] text-xs font-bold transition-all">
-            🏛 Inspect Initiative & 11 Criteria →
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="window.speakJarvisBriefing()" class="px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-400/50 text-xs font-hud font-bold transition-all">
+            🎙 Voice Briefing
           </button>
-          <button onclick="window.openSpawnModal()" class="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-all">
-            + Spawn Specialist
+          <button onclick="window.toggleJarvisAudio()" class="px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 text-xs font-hud font-bold transition-all">
+            ${state.jarvisAudioEnabled ? '🔊 SFX: ON' : '🔇 SFX: MUTE'}
           </button>
-          <button onclick="window.triggerInternalTransformationProject(true)" ${state.internalProjectRunning ? 'disabled' : ''} class="px-4 py-2 rounded-xl bg-[#0B6BCB] hover:bg-[#0958A8] text-white text-xs font-bold shadow-sm transition-all">
-            ${state.internalProjectRunning ? 'Executing Organizational DAG...' : '⚡ Re-Run Transformation DAG'}
+          <button onclick="window.toggleJarvisAutoOrbit()" class="px-3 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-400/50 text-xs font-hud font-bold transition-all">
+            ${state.jarvisAutoOrbit ? '⟳ 360° Orbit: AUTO' : '⏸ 360° Orbit: MANUAL'}
+          </button>
+          <button onclick="window.triggerInternalTransformationProject(true)" ${state.internalProjectRunning ? 'disabled' : ''} class="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-hud font-extrabold shadow-[0_0_20px_rgba(0,240,255,0.5)] transition-all">
+            ${state.internalProjectRunning ? 'EXECUTING 360° DAG...' : '⚡ PULSE 360° DAG'}
           </button>
         </div>
       </div>
 
-      <!-- 2. THE LIVING INTELLIGENCE WORLD STAGE (LIGHT-MODE SPATIAL ARCHITECTURE) -->
-      <div class="zl-world-stage">
-        <!-- SVG Synaptic Pathways Background Layer -->
-        <svg class="hidden lg:block absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 1200 560" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="zlPathLeft" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#0284C7" stop-opacity="0.45"/>
-              <stop offset="100%" stop-color="#0B6BCB" stop-opacity="0.85"/>
-            </linearGradient>
-            <linearGradient id="zlPathRight" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#0B6BCB" stop-opacity="0.85"/>
-              <stop offset="100%" stop-color="#15803D" stop-opacity="0.55"/>
-            </linearGradient>
-          </defs>
-          <!-- Left Wing Departmental Neural Lines to Central Brain (600, 270) -->
-          <path d="M 330 110 C 450 110, 470 250, 600 265" stroke="url(#zlPathLeft)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
-          <path d="M 330 275 C 450 275, 480 275, 600 275" stroke="url(#zlPathLeft)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
-          <path d="M 330 440 C 450 440, 470 295, 600 285" stroke="#D97706" stroke-width="2.5" stroke-opacity="0.6" fill="none" class="zl-neural-pathway-line"/>
-          <!-- Right Wing Departmental Neural Lines from Central Brain (600, 270) -->
-          <path d="M 600 265 C 730 250, 750 110, 870 110" stroke="url(#zlPathRight)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
-          <path d="M 600 275 C 720 275, 750 275, 870 275" stroke="#7C3AED" stroke-width="2.5" stroke-opacity="0.55" fill="none" class="zl-neural-pathway-line"/>
-          <path d="M 600 285 C 730 295, 750 440, 870 440" stroke="#15803D" stroke-width="2.5" stroke-opacity="0.65" fill="none" class="zl-neural-pathway-line"/>
-        </svg>
+      <!-- 2. THE 360° HOLOGRAPHIC & RESN 3D GENERATIVE VIEWPORT -->
+      <div id="jarvis-360-stage" class="jarvis-360-viewport">
+        <!-- Interactive 3D Generative Particle Morphing WebGL/Canvas Layer -->
+        <canvas id="jarvis-webgl-stage" class="absolute inset-0 w-full h-full pointer-events-none z-[6]"></canvas>
 
-        <!-- 3-Column Spatial World Grid -->
-        <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-          <!-- LEFT WING: Discovery, Architecture & Creative Studio Habitats -->
-          <div class="lg:col-span-4 space-y-4">
-            ${renderHabitatPod({
-              dept: 'Product & Strategy Habitat',
-              badge: 'Discovery & UX',
-              accentColor: '#0284C7',
-              specialist: hadi,
-              secondarySpecialist: hania,
-              artifactPath: 'projects/zaxterlab-immersive-world/01_INITIATIVE_PRD_AND_DAG.md',
-              artifactLabel: '01_INITIATIVE_PRD_AND_DAG.md',
-            })}
-            ${renderHabitatPod({
-              dept: 'System Architecture Habitat',
-              badge: 'Contracts & Topology',
-              accentColor: '#4F46E5',
-              specialist: sirfaraz,
-              artifactPath: 'projects/zaxterlab-immersive-world/02_WORLD_TECHNICAL_ARCHITECTURE.md',
-              artifactLabel: '02_WORLD_TECHNICAL_ARCHITECTURE.md',
-            })}
-            ${renderHabitatPod({
-              dept: 'Creative Studio & Motion Habitat',
-              badge: 'Dynamically Spawned',
-              accentColor: '#D97706',
-              specialist: musab,
-              artifactPath: 'projects/zaxterlab-immersive-world/04_MASCOT_AND_MOTION_SPEC.md',
-              artifactLabel: '04_MASCOT_AND_MOTION_SPEC.md',
-            })}
+        <!-- Top-Left Live Holographic Telemetry Overlay -->
+        <div class="absolute top-5 left-6 z-30 pointer-events-none space-y-1 font-mono text-[11px]">
+          <div class="flex items-center gap-2 text-cyan-300 font-hud font-bold text-xs">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span>STARK HOLO-TABLE // 360° GIMBAL TELEMETRY</span>
+          </div>
+          <div class="text-sky-300/80">AZIMUTH: <span id="hud-azimuth-val" class="text-cyan-300 font-bold">${Math.round(state.jarvisOrbitDeg)}°</span> • TILT X/Y: <span id="hud-tilt-val" class="text-amber-300 font-bold">${state.jarvisTiltX}° / ${state.jarvisTiltY}°</span></div>
+          <div class="text-sky-300/80">HARMONIC FREQ: <span class="text-cyan-300 font-bold">${activeChapter.freq}</span> • STATUS: <span class="text-emerald-400 font-bold">${activeChapter.stress}</span></div>
+          <div class="text-[10px] text-cyan-400/70">DRAG STAGE TO SPIN 360° • SCROLL WHEEL TO MORPH 3D GEOMETRY</div>
+        </div>
+
+        <!-- Top-Right 11 Cognitive Brain States Selector Matrix -->
+        <div class="absolute top-5 right-6 z-30 max-w-xs bg-[#041026]/85 border border-cyan-400/40 rounded-2xl p-3 backdrop-blur-md">
+          <div class="flex items-center justify-between text-[10px] font-hud text-cyan-300 mb-1.5">
+            <span>BRAIN STATE: ${activeBrainState}</span>
+            ${state.brainStateOverride ? `<button onclick="window.setBrainStateOverride(null)" class="text-amber-300 hover:underline">LIVE</button>` : '<span class="text-emerald-400">● SYNC</span>'}
+          </div>
+          <div class="flex flex-wrap gap-1">
+            ${Object.keys(BRAIN_STATES_META).map((stKey) => `
+              <button onmouseenter="playJarvisSound('chirp')" onclick="window.setBrainStateOverride('${stKey}')" class="px-1.5 py-0.5 rounded text-[9px] font-mono transition-all ${
+                activeBrainState === stKey
+                  ? 'bg-cyan-400 text-slate-950 font-extrabold shadow-[0_0_10px_#00F0FF]'
+                  : 'bg-cyan-950/70 text-cyan-300 hover:border-cyan-400 border border-cyan-500/20'
+              }" title="${BRAIN_STATES_META[stKey].desc}">
+                ${stKey.split('_')[0]}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- 3D TILTABLE HOLOGRAPHIC PLANE WITH CONCENTRIC RINGS & 7 ORBITAL SATELLITE NODES -->
+        <div id="jarvis-360-plane" class="jarvis-360-plane" style="transform: rotateX(${state.jarvisTiltX}deg) rotateY(${state.jarvisTiltY}deg);">
+          <!-- Concentric Counter-Rotating 360° Holographic Rings -->
+          <div class="jarvis-ring-layer jarvis-radar-sweep"></div>
+          <div class="jarvis-ring-layer jarvis-ring-outer"></div>
+          <div class="jarvis-ring-layer jarvis-ring-mid"></div>
+          <div class="jarvis-ring-layer jarvis-ring-inner"></div>
+          <div class="jarvis-ring-layer jarvis-gyro-ring-a"></div>
+          <div class="jarvis-ring-layer jarvis-gyro-ring-b"></div>
+
+          <!-- Dynamic 360° SVG Laser Synaptic Beams Connecting Core to All 7 Orbital Nodes -->
+          <svg id="jarvis-orbital-svg" class="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1200 760" preserveAspectRatio="none">
+            <defs>
+              <radialGradient id="jarvisCorePulse" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.45"/>
+                <stop offset="60%" stop-color="#FFB800" stop-opacity="0.12"/>
+                <stop offset="100%" stop-color="#030814" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="600" cy="380" r="210" fill="url(#jarvisCorePulse)"/>
+            <g id="jarvis-laser-lines-group"></g>
+          </svg>
+
+          <!-- CENTRAL J.A.R.V.I.S. ARC-BRAIN ENTITY -->
+          <div onmouseenter="playJarvisSound('chirp')" onclick="playJarvisSound('lock'); window.openBrainDrawer()" class="jarvis-central-core">
+            <img src="/assets/brain-entity.jpg" alt="J.A.R.V.I.S. Central Brain" class="jarvis-core-photo" />
+            <div class="mt-2 text-center px-2">
+              <div class="text-[10px] font-hud font-extrabold text-cyan-300 tracking-widest">J.A.R.V.I.S. CORE</div>
+              <div class="text-[9px] font-mono text-amber-300 truncate max-w-[170px]">${brainMeta.label}</div>
+              <div class="text-[8px] font-mono text-emerald-400 mt-0.5">$0.00 LOCK • ${specialists.length} UNITS</div>
+            </div>
           </div>
 
-          <!-- CENTER CORE: THE CENTRAL INTELLIGENCE BRAIN SANCTUARY -->
-          <div class="lg:col-span-4 flex flex-col items-center justify-center">
-            <div onclick="window.openBrainDrawer()" class="zl-brain-sanctuary zl-brain-state-${activeBrainState} w-full max-w-sm text-center">
-              <div class="flex items-center justify-between w-full mb-3">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">CENTRAL INTELLIGENCE ENTITY</span>
-                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${brainMeta.color}">
-                  ${brainMeta.label}
+          <!-- 7 ORBITAL SPECIALIST SATELLITE NODES (360° RADIAL FORMATION) -->
+          ${specialists.map((spec, idx) => `
+            <div
+              id="jarvis-node-${idx}"
+              data-orbital-index="${idx}"
+              data-total-nodes="${specialists.length}"
+              onmouseenter="playJarvisSound('chirp')"
+              onclick="playJarvisSound('lock'); window.openMascotDrawer('${spec.worker_id}')"
+              class="jarvis-orbital-node"
+            >
+              <div class="flex items-center justify-between text-[9px] font-hud text-cyan-300 mb-1">
+                <span class="truncate">${spec.department.toUpperCase()}</span>
+                <span class="px-1.5 py-0.2 rounded bg-cyan-500/20 text-amber-300 border border-amber-400/40 font-mono">
+                  ${Math.round((idx * 360) / specialists.length)}°
                 </span>
               </div>
-
-              <!-- 3D Sculptural Studio Brain + Animated Vector Synaptic Rig -->
-              <div class="zl-brain-visual-frame my-2">
-                <img src="/assets/brain-entity.jpg" alt="ZaxterLab Central Intelligence Brain Entity" class="zl-brain-photo" />
-                <img src="/assets/brain-core.svg" alt="Synaptic Rig Overlay" class="zl-brain-svg-rig" />
-              </div>
-
-              <h3 class="text-lg font-extrabold text-[#141923] mt-3 tracking-tight">
-                ZaxterLab Neural Core
-              </h3>
-              <p class="text-xs text-[#3E4C59] mt-1 leading-relaxed px-2">
-                ${brainMeta.desc}
-              </p>
-
-              <!-- Live Brain Telemetry Metrics Strip -->
-              <div class="grid grid-cols-3 gap-2 w-full mt-4 pt-3 border-t border-[#E6E1D6] text-center">
-                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
-                  <div class="text-sm font-extrabold text-[#0B6BCB]">${specialists.length}</div>
-                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Specialists</div>
+              <div class="flex items-center gap-2.5">
+                <div class="zl-mascot-avatar ${getSpriteClass(spec)}"></div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-extrabold font-hud text-white truncate">${spec.name}</span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#00FF9D]"></span>
+                  </div>
+                  <div class="text-[10px] font-bold text-cyan-300 truncate">${spec.mascot_name.split('—')[0].trim()}</div>
+                  <div class="text-[9px] text-sky-300/80 truncate">${spec.role_title}</div>
+                  <div class="text-[9px] font-mono text-amber-300/90 mt-0.5">${spec.tasks_completed ?? 1} tasks • ${spec.tokens_used ?? 40} tok</div>
                 </div>
-                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
-                  <div class="text-sm font-extrabold text-emerald-700">${brain.completed_task_count ?? 7}</div>
-                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Tasks Done</div>
-                </div>
-                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
-                  <div class="text-sm font-extrabold text-emerald-700 font-mono">$0.00</div>
-                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Spend Lock</div>
-                </div>
-              </div>
-
-              <div class="mt-3 text-[11px] font-bold text-[#0B6BCB] flex items-center gap-1">
-                <span>Click Brain to Inspect & Simulate All 11 Cognitive States</span>
-                <span>→</span>
               </div>
             </div>
+          `).join('')}
+        </div>
 
-            <!-- Interactive 11-State Quick Switcher Bar -->
-            <div class="mt-4 bg-white/90 border border-[#DFD9CC] rounded-2xl p-3 w-full max-w-sm shadow-xs">
-              <div class="flex items-center justify-between text-[10px] font-bold text-[#64748B] uppercase mb-2">
-                <span>Cognitive State Previewer (11 States)</span>
-                ${state.brainStateOverride ? `<button onclick="window.setBrainStateOverride(null)" class="text-[#0B6BCB] hover:underline">Reset Live</button>` : '<span class="text-emerald-700">● Live Sync</span>'}
-              </div>
-              <div class="flex flex-wrap gap-1">
-                ${Object.keys(BRAIN_STATES_META).map((stKey) => `
-                  <button onclick="window.setBrainStateOverride('${stKey}')" class="px-2 py-0.5 rounded-lg text-[9px] font-mono transition-all ${
-                    activeBrainState === stKey
-                      ? 'bg-[#0B6BCB] text-white font-bold shadow-xs'
-                      : 'bg-[#F4F1EA] text-[#3E4C59] hover:bg-[#E6E1D6]'
-                  }" title="${BRAIN_STATES_META[stKey].desc}">
-                    ${stKey.split('_')[0]}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
+        <!-- Bottom HUD: Resn 4-Chapter Interactive 3D Morph Scrubber + 360° Azimuth Slider -->
+        <div class="absolute bottom-4 left-6 right-6 z-30 flex flex-wrap items-center justify-between gap-4 bg-[#041026]/90 border border-cyan-400/40 rounded-2xl p-3.5 backdrop-blur-xl">
+          <!-- 4 Resn Generative 3D Chapters -->
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-hud text-cyan-300 mr-1">RESN 3D MORPH:</span>
+            ${RESN_CHAPTERS.map((ch) => `
+              <button
+                onmouseenter="playJarvisSound('chirp')"
+                onclick="window.setJarvisChapter(${ch.id})"
+                class="px-3 py-1.5 rounded-xl text-[10px] font-hud font-bold transition-all ${
+                  state.jarvisChapter === ch.id
+                    ? 'bg-gradient-to-r from-cyan-400 to-sky-400 text-slate-950 shadow-[0_0_18px_rgba(0,240,255,0.6)]'
+                    : 'bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400'
+                }"
+              >
+                0${ch.id} // ${ch.code.split('//')[1].trim()}
+              </button>
+            `).join('')}
           </div>
 
-          <!-- RIGHT WING: Engineering, QA & Chief Audit Habitats -->
-          <div class="lg:col-span-4 space-y-4">
-            ${renderHabitatPod({
-              dept: 'Core Engineering Habitat',
-              badge: 'Code & Runtime',
-              accentColor: '#0B6BCB',
-              specialist: reem,
-              artifactPath: 'projects/zaxterlab-immersive-world/05_FRONTEND_IMPLEMENTATION_LOG.md',
-              artifactLabel: '05_FRONTEND_IMPLEMENTATION_LOG.md',
-            })}
-            ${renderHabitatPod({
-              dept: 'Quality Assurance Habitat',
-              badge: 'Hermetic Verification',
-              accentColor: '#7C3AED',
-              specialist: aroosh,
-              artifactPath: 'projects/zaxterlab-immersive-world/06_QA_VERIFICATION_SUITE.py',
-              artifactLabel: '06_QA_VERIFICATION_SUITE.py',
-            })}
-            ${renderHabitatPod({
-              dept: 'Security & Audit Habitat',
-              badge: 'Zero-Spend & QC Gate',
-              accentColor: '#15803D',
-              specialist: zaks,
-              artifactPath: 'projects/zaxterlab-immersive-world/07_CHIEF_AUDITOR_CLEARANCE.md',
-              artifactLabel: '07_CHIEF_AUDITOR_CLEARANCE.md',
-            })}
+          <!-- 360° Manual Azimuth Scrubber -->
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <span class="text-[10px] font-hud text-amber-300">360° ORBIT DIAL:</span>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value="${Math.round(state.jarvisOrbitDeg)}"
+              oninput="window.setJarvisOrbitDeg(this.value)"
+              class="w-36 accent-cyan-400 cursor-pointer"
+            />
+            <button onclick="window.openSpawnModal()" class="px-3 py-1.5 rounded-xl bg-amber-400/20 hover:bg-amber-400/35 text-amber-300 border border-amber-400/50 text-[10px] font-hud font-bold">
+              + SPAWN UNIT
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- 3. ORIGINAL SPECIALIST MASCOT ROSTER (TACTILE 3D STUDIO CHARACTERS) -->
-      <div class="bg-white rounded-2xl p-6 border border-[#DFD9CC] shadow-sm">
+      <!-- 3. HOLOGRAPHIC MASCOT & TELEMETRY DOSSIER GRID -->
+      <div class="rounded-2xl p-6 border border-cyan-400/35 bg-[#051129]/80 backdrop-blur-xl">
         <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
           <div>
-            <div class="text-[10px] font-bold uppercase tracking-wider text-[#0B6BCB]">CHARACTER & MASCOT SYSTEM (STUDIO 170-PROTOCOL)</div>
-            <h2 class="text-lg font-extrabold text-[#141923] mt-0.5">Company Workforce & Specialist Mascots</h2>
-            <p class="text-xs text-[#3E4C59]">Click any specialist mascot to inspect their runtime identity, capabilities, allowed tools, and recent outputs.</p>
+            <div class="text-[10px] font-hud uppercase tracking-wider text-cyan-400">HOLOGRAPHIC MASCOT ARRAY // STUDIO 170-PROTOCOL</div>
+            <h2 class="text-lg font-extrabold font-hud text-white mt-0.5">7 Orbital Specialist Units & Tactile 3D Companions</h2>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="window.openTaskModal()" class="px-3.5 py-1.5 rounded-xl bg-[#F4F1EA] hover:bg-[#E6E1D6] text-[#141923] border border-[#DFD9CC] text-xs font-bold">
-              + Assign Task to Specialist
+            <button onclick="window.setTab('initiative')" class="px-3.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-200 border border-cyan-400/40 text-xs font-hud font-bold">
+              🏛 View 7-Stage Initiative DAG →
             </button>
-            <button onclick="window.openSpawnModal()" class="px-3.5 py-1.5 rounded-xl bg-[#0B6BCB] hover:bg-[#0958A8] text-white text-xs font-bold shadow-xs">
-              + Propose / Spawn New Specialist
+            <button onclick="window.openTaskModal()" class="px-3.5 py-1.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 text-xs font-hud font-extrabold">
+              + Dispatch New Task
             </button>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           ${specialists.map((spec) => `
-            <div onclick="window.openMascotDrawer('${spec.worker_id}')" class="zl-habitat-pod zl-mascot-status-${spec.current_status || 'AVAILABLE'} flex flex-col justify-between">
+            <div onmouseenter="playJarvisSound('chirp')" onclick="playJarvisSound('lock'); window.openMascotDrawer('${spec.worker_id}')" class="zl-habitat-pod flex flex-col justify-between">
               <div>
                 <div class="flex items-start gap-3">
                   <div class="zl-mascot-avatar ${getSpriteClass(spec)}"></div>
                   <div class="min-w-0 flex-1">
                     <div class="flex items-center justify-between gap-1">
-                      <span class="text-sm font-extrabold text-[#141923] truncate">${spec.name}</span>
-                      <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        spec.current_status === 'WORKING'
-                          ? 'bg-sky-100 text-[#0B6BCB]'
-                          : spec.lifecycle_state === 'PROPOSED'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      }">${spec.current_status || 'AVAILABLE'}</span>
+                      <span class="text-sm font-extrabold font-hud text-white truncate">${spec.name}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                        ${spec.current_status || 'ONLINE'}
+                      </span>
                     </div>
-                    <div class="text-[11px] font-bold text-[#0B6BCB] truncate mt-0.5">${spec.mascot_name || 'Specialist Companion'}</div>
-                    <div class="text-[10px] text-[#64748B] truncate">${spec.role_title}</div>
+                    <div class="text-[11px] font-bold text-cyan-300 truncate mt-0.5">${spec.mascot_name}</div>
+                    <div class="text-[10px] text-sky-300/80 truncate">${spec.role_title}</div>
                   </div>
                 </div>
-                <p class="text-[11px] text-[#3E4C59] mt-3 line-clamp-2 leading-relaxed">
-                  ${spec.mascot_description || 'Dedicated departmental specialist operating inside the ZaxterLab sandbox.'}
+                <p class="text-[11px] text-sky-200/80 mt-3 line-clamp-2 leading-relaxed">
+                  ${spec.mascot_description}
                 </p>
               </div>
-
-              <div class="mt-3 pt-2.5 border-t border-[#E6E1D6] flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+              <div class="mt-3 pt-2.5 border-t border-cyan-500/25 flex items-center justify-between text-[10px] font-mono text-cyan-300">
                 <span>${spec.department}</span>
-                <span class="font-bold text-[#141923]">${spec.tasks_completed ?? 0} tasks • ${spec.tokens_used ?? 0} tok</span>
+                <span class="font-bold text-amber-300">${spec.tasks_completed ?? 1} tasks • $0.00</span>
               </div>
             </div>
           `).join('')}
@@ -3685,10 +3806,351 @@ function renderFileViewerModal() {
   `;
 }
 
+// ============================================================================
+// J.A.R.V.I.S. 360° ORBITAL KINEMATICS & RESN 3D GENERATIVE PARTICLE ENGINE
+// ============================================================================
+
+let jarvisMouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, rx: window.innerWidth / 2, ry: window.innerHeight / 2 };
+let isDraggingStage = false;
+let dragStartX = 0;
+let dragStartY = 0;
+
+function updateOrbitalDomPositions() {
+  const stage = document.getElementById('jarvis-360-stage');
+  const plane = document.getElementById('jarvis-360-plane');
+  const laserGroup = document.getElementById('jarvis-laser-lines-group');
+  if (!stage || !plane) return;
+
+  const azEl = document.getElementById('hud-azimuth-val');
+  if (azEl) azEl.textContent = `${Math.round(state.jarvisOrbitDeg % 360)}°`;
+  const tiltEl = document.getElementById('hud-tilt-val');
+  if (tiltEl) tiltEl.textContent = `${Math.round(state.jarvisTiltX)}° / ${Math.round(state.jarvisTiltY)}°`;
+
+  plane.style.transform = `rotateX(${state.jarvisTiltX}deg) rotateY(${state.jarvisTiltY}deg)`;
+
+  const nodes = plane.querySelectorAll('.jarvis-orbital-node');
+  const total = nodes.length || 7;
+  const rx = Math.min(stage.clientWidth * 0.36, 420);
+  const ry = Math.min(stage.clientHeight * 0.34, 255);
+
+  let svgLinesHtml = '';
+  nodes.forEach((node, idx) => {
+    const baseAngleDeg = (idx * 360) / total + state.jarvisOrbitDeg;
+    const rad = (baseAngleDeg * Math.PI) / 180;
+    const offsetX = Math.cos(rad) * rx;
+    const offsetY = Math.sin(rad) * ry;
+    const zDepth = Math.sin(rad) * 28;
+    const scale = 0.94 + (Math.sin(rad) + 1) * 0.06;
+
+    node.style.left = `calc(50% + ${offsetX.toFixed(1)}px)`;
+    node.style.top = `calc(50% + ${offsetY.toFixed(1)}px)`;
+    node.style.transform = `translate(-50%, -50%) translateZ(${zDepth.toFixed(1)}px) scale(${scale.toFixed(3)})`;
+
+    // Map to 1200x760 SVG coordinate space for laser synaptic beams
+    const svgX = 600 + (offsetX / (stage.clientWidth || 1200)) * 1200;
+    const svgY = 380 + (offsetY / (stage.clientHeight || 760)) * 760;
+    const ctrlX = 600 + (svgX - 600) * 0.5 - (svgY - 380) * 0.18;
+    const ctrlY = 380 + (svgY - 380) * 0.5 + (svgX - 600) * 0.18;
+    const strokeCol = idx % 2 === 0 ? '#00F0FF' : '#FFB800';
+
+    svgLinesHtml += `
+      <path d="M 600 380 Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${svgX.toFixed(1)} ${svgY.toFixed(1)}"
+        stroke="${strokeCol}" stroke-width="1.8" stroke-opacity="0.65" fill="none" class="jarvis-laser-beam" />
+      <circle cx="${svgX.toFixed(1)}" cy="${svgY.toFixed(1)}" r="4" fill="${strokeCol}" />
+    `;
+  });
+
+  if (laserGroup) {
+    laserGroup.innerHTML = svgLinesHtml;
+  }
+}
+
+function startJarvisResnEngine() {
+  // 1. Setup 1,100 3D Generative Morphing Particles for #jarvis-webgl-stage
+  const COUNT = 1100;
+  const particles3D = [];
+  for (let i = 0; i < COUNT; i++) {
+    particles3D.push({
+      x: (Math.random() - 0.5) * 400,
+      y: (Math.random() - 0.5) * 400,
+      z: (Math.random() - 0.5) * 400,
+      tx: 0,
+      ty: 0,
+      tz: 0,
+      color: i % 3 === 0 ? '#FFB800' : i % 5 === 0 ? '#00FF9D' : '#00F0FF',
+      size: 1.2 + Math.random() * 1.8,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+
+  function computeTargetGeometry(i, total, chapter, t) {
+    const u = i / total;
+    if (chapter === 1) {
+      // CH-01: GENESIS DOUBLE-HELIX DNA CODE (Corn Revolution homage)
+      const strand = i % 2 === 0 ? 1 : -1;
+      const angle = u * Math.PI * 10 + t * 1.4;
+      const radius = 115;
+      if (i % 12 === 0) {
+        // Synaptic Base-Pair Bridge Rung
+        const bridgeLerp = ((i % 24) / 24) * 2 - 1;
+        return {
+          x: Math.cos(angle) * radius * bridgeLerp,
+          y: (u - 0.5) * 340,
+          z: Math.sin(angle) * radius * bridgeLerp,
+        };
+      }
+      return {
+        x: Math.cos(angle) * radius * strand,
+        y: (u - 0.5) * 340,
+        z: Math.sin(angle) * radius * strand,
+      };
+    } else if (chapter === 2) {
+      // CH-02: CORTICAL MATRIX (Fibonacci Geodesic Sphere + Equatorial Ring)
+      if (i < total * 0.75) {
+        const idx = i;
+        const n = total * 0.75;
+        const phi = Math.acos(1 - (2 * (idx + 0.5)) / n);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * idx + t * 0.8;
+        const r = 135 + Math.sin(phi * 6 + t * 2) * 10;
+        return {
+          x: r * Math.sin(phi) * Math.cos(theta),
+          y: r * Math.cos(phi),
+          z: r * Math.sin(phi) * Math.sin(theta),
+        };
+      } else {
+        const ringAng = u * Math.PI * 24 - t * 1.8;
+        const r = 195 + (i % 3) * 14;
+        return {
+          x: Math.cos(ringAng) * r,
+          y: Math.sin(ringAng * 3) * 18,
+          z: Math.sin(ringAng) * r,
+        };
+      }
+    } else if (chapter === 3) {
+      // CH-03: TOROIDAL VORTEX (3D Trefoil Torus-Knot Particle Accelerator)
+      const p = 2;
+      const q = 3;
+      const theta = u * Math.PI * 2 * p * 4 + t * 1.2;
+      const r = 115 + 48 * Math.cos(q * theta);
+      return {
+        x: r * Math.cos(p * theta),
+        y: 48 * Math.sin(q * theta) + Math.cos(u * 40 + t) * 15,
+        z: r * Math.sin(p * theta),
+      };
+    } else {
+      // CH-04: AEGIS CONTAINMENT STRESS-TEST (80+ MPH Wind Deflecting off Shield)
+      if (i < total * 0.55) {
+        // Golden Geodesic Containment Shield
+        const idx = i;
+        const n = total * 0.55;
+        const phi = Math.acos(1 - (2 * (idx + 0.5)) / n);
+        const theta = Math.PI * (1 + Math.sqrt(5)) * idx - t * 1.5;
+        const r = 130;
+        return {
+          x: r * Math.sin(phi) * Math.cos(theta),
+          y: r * Math.cos(phi),
+          z: r * Math.sin(phi) * Math.sin(theta),
+        };
+      } else {
+        // High-Velocity Wind Stream Deflecting Radially off Shield
+        const streamPos = ((u * 500 + t * 260) % 480) - 240;
+        let y = ((i * 73) % 260) - 130;
+        let z = ((i * 137) % 260) - 130;
+        const distSq = streamPos * streamPos + y * y + z * z;
+        if (distSq < 145 * 145) {
+          const factor = 152 / Math.max(1, Math.sqrt(distSq));
+          y *= factor;
+          z *= factor;
+        }
+        return { x: streamPos, y, z };
+      }
+    }
+  }
+
+  // 2. Setup Full-Screen Holographic Glitter Stardust (#jarvis-particle-canvas)
+  const glitterParticles = Array.from({ length: 110 }, () => ({
+    x: Math.random() * window.innerWidth,
+    y: Math.random() * window.innerHeight,
+    vx: (Math.random() - 0.5) * 0.55,
+    vy: (Math.random() - 0.5) * 0.55,
+    r: 0.8 + Math.random() * 2.1,
+    alpha: 0.25 + Math.random() * 0.75,
+    gold: Math.random() > 0.68,
+  }));
+
+  // Pointer & Wheel Listeners
+  window.addEventListener('mousemove', (e) => {
+    jarvisMouse.x = e.clientX;
+    jarvisMouse.y = e.clientY;
+    const dot = document.getElementById('jarvis-cursor-dot');
+    if (dot) {
+      dot.style.left = `${e.clientX}px`;
+      dot.style.top = `${e.clientY}px`;
+    }
+    if (isDraggingStage) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      state.jarvisOrbitDeg = (state.jarvisOrbitDeg + dx * 0.45 + 360) % 360;
+      state.jarvisTiltX = Math.max(-22, Math.min(35, state.jarvisTiltX - dy * 0.2));
+      state.jarvisTiltY = Math.max(-25, Math.min(25, state.jarvisTiltY + dx * 0.15));
+      updateOrbitalDomPositions();
+    }
+  });
+
+  window.addEventListener('mousedown', (e) => {
+    const stage = document.getElementById('jarvis-360-stage');
+    if (stage && stage.contains(e.target) && !e.target.closest('button, input')) {
+      isDraggingStage = true;
+      state.jarvisAutoOrbit = false;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDraggingStage = false;
+  });
+
+  // Scroll-Wheel Over 360° Stage Morphs Through Resn 3D Chapters
+  let lastWheelTime = 0;
+  window.addEventListener(
+    'wheel',
+    (e) => {
+      const stage = document.getElementById('jarvis-360-stage');
+      if (!stage || !stage.contains(e.target)) return;
+      const now = Date.now();
+      if (now - lastWheelTime < 420) return;
+      lastWheelTime = now;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const nextCh = ((state.jarvisChapter - 1 + dir + 4) % 4) + 1;
+      window.setJarvisChapter(nextCh);
+    },
+    { passive: true }
+  );
+
+  let startTime = performance.now();
+
+  function animateFrame(now) {
+    const t = (now - startTime) * 0.001;
+    const isReduced = state.motionMode === 'reduced';
+
+    // Spring-follow reticle ring
+    jarvisMouse.rx += (jarvisMouse.x - jarvisMouse.rx) * 0.18;
+    jarvisMouse.ry += (jarvisMouse.y - jarvisMouse.ry) * 0.18;
+    const ring = document.getElementById('jarvis-cursor-ring');
+    if (ring) {
+      ring.style.left = `${jarvisMouse.rx}px`;
+      ring.style.top = `${jarvisMouse.ry}px`;
+    }
+
+    // Auto-orbit 360° specialist nodes
+    if (state.jarvisAutoOrbit && !isDraggingStage && !isReduced) {
+      state.jarvisOrbitDeg = (state.jarvisOrbitDeg + 0.18) % 360;
+      updateOrbitalDomPositions();
+    }
+
+    // Render 3D Generative Sculpture on #jarvis-webgl-stage
+    const stageCanvas = document.getElementById('jarvis-webgl-stage');
+    if (stageCanvas) {
+      const rect = stageCanvas.parentElement.getBoundingClientRect();
+      if (stageCanvas.width !== Math.floor(rect.width) || stageCanvas.height !== Math.floor(rect.height)) {
+        stageCanvas.width = Math.floor(rect.width);
+        stageCanvas.height = Math.floor(rect.height);
+      }
+      const ctx = stageCanvas.getContext('2d');
+      ctx.clearRect(0, 0, stageCanvas.width, stageCanvas.height);
+      ctx.globalCompositeOperation = 'lighter';
+
+      const cx = stageCanvas.width / 2;
+      const cy = stageCanvas.height / 2;
+      const rotY = (state.jarvisOrbitDeg * Math.PI) / 180 + t * 0.35;
+      const rotX = (state.jarvisTiltX * Math.PI) / 180;
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+
+      for (let i = 0; i < COUNT; i++) {
+        const p = particles3D[i];
+        const target = computeTargetGeometry(i, COUNT, state.jarvisChapter, isReduced ? 0 : t);
+        p.x += (target.x - p.x) * 0.08;
+        p.y += (target.y - p.y) * 0.08;
+        p.z += (target.z - p.z) * 0.08;
+
+        // 3D Rotation & Perspective Projection
+        const x1 = p.x * cosY - p.z * sinY;
+        const z1 = p.z * cosY + p.x * sinY;
+        const y2 = p.y * cosX - z1 * sinX;
+        const z2 = z1 * cosX + p.y * sinX;
+
+        const fov = 520;
+        const scale = fov / Math.max(80, fov + z2 + 220);
+        const sx = cx + x1 * scale;
+        const sy = cy + y2 * scale;
+
+        const sparkle = 0.55 + 0.45 * Math.sin(t * 4 + p.phase);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.min(1, scale * sparkle * 0.9);
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(0.7, p.size * scale), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Render Ambient Holographic Glitter Field on #jarvis-particle-canvas
+    const bgCanvas = document.getElementById('jarvis-particle-canvas');
+    if (bgCanvas && !isReduced) {
+      if (bgCanvas.width !== window.innerWidth || bgCanvas.height !== window.innerHeight) {
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+      }
+      const bctx = bgCanvas.getContext('2d');
+      bctx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+      for (let i = 0; i < glitterParticles.length; i++) {
+        const g = glitterParticles[i];
+        g.x = (g.x + g.vx + bgCanvas.width) % bgCanvas.width;
+        g.y = (g.y + g.vy + bgCanvas.height) % bgCanvas.height;
+
+        const dx = g.x - jarvisMouse.x;
+        const dy = g.y - jarvisMouse.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 135) {
+          bctx.strokeStyle = g.gold ? 'rgba(255,184,0,0.22)' : 'rgba(0,240,255,0.22)';
+          bctx.lineWidth = 0.8;
+          bctx.beginPath();
+          bctx.moveTo(g.x, g.y);
+          bctx.lineTo(jarvisMouse.x, jarvisMouse.y);
+          bctx.stroke();
+        }
+
+        const twinkle = 0.4 + 0.6 * Math.abs(Math.sin(t * 3 + i));
+        bctx.fillStyle = g.gold ? `rgba(255,184,0,${g.alpha * twinkle})` : `rgba(0,240,255,${g.alpha * twinkle})`;
+        bctx.beginPath();
+        bctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+        bctx.fill();
+      }
+    }
+
+    requestAnimationFrame(animateFrame);
+  }
+
+  requestAnimationFrame(animateFrame);
+}
+
 // --- Initialization ---
 window.addEventListener('DOMContentLoaded', () => {
   render();
-  refreshData();
+  updateOrbitalDomPositions();
+  startJarvisResnEngine();
+  refreshData().then(() => updateOrbitalDomPositions());
   // Auto-refresh every 10 seconds for real-time updates
-  setInterval(refreshData, 10000);
+  setInterval(() => {
+    refreshData().then(() => updateOrbitalDomPositions());
+  }, 10000);
 });
