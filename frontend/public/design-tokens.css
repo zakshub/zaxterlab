@@ -1,0 +1,312 @@
+/* ==========================================================================
+   ZAXTERLAB IMMERSIVE INTELLIGENCE WORLD — LIGHT-MODE DESIGN TOKENS
+   Grounded in zakshub/designer & zakshub/studio (170-protocol)
+   Light Mode is Mandatory: Warm Ivory (#FBF9F5) & Pale Sky (#F2F6FA)
+   ========================================================================== */
+
+:root {
+  /* 1. Atmospheric Light-Mode Surfaces */
+  --zl-canvas-ivory: #FBF9F5;
+  --zl-canvas-sky: #F2F6FA;
+  --zl-canvas-stone: #F4F1EA;
+  --zl-surface-card: #FFFFFF;
+  --zl-surface-elevated: rgba(255, 255, 255, 0.92);
+  --zl-surface-glass: rgba(251, 249, 245, 0.86);
+  --zl-surface-subtle: #F7F5F0;
+  --zl-surface-code: #F3F4F6;
+
+  /* 2. Typography & Ink Hierarchy (WCAG AAA / AA+ Verified) */
+  --zl-ink-primary: #141923;
+  --zl-ink-secondary: #3E4C59;
+  --zl-ink-muted: #64748B;
+  --zl-ink-faint: #94A3B8;
+
+  /* 3. Borders & Hairlines */
+  --zl-border-subtle: #E6E1D6;
+  --zl-border-crisp: #D5CFC2;
+  --zl-border-focus: #0B6BCB;
+
+  /* 4. Semantic & Neural Signal Accents */
+  --zl-signal-blue: #0B6BCB;
+  --zl-signal-blue-soft: #E0F2FE;
+  --zl-signal-cyan: #0E7490;
+  --zl-signal-cyan-soft: #CFFAFE;
+  --zl-signal-emerald: #15803D;
+  --zl-signal-emerald-soft: #DCFCE7;
+  --zl-signal-amber: #B45309;
+  --zl-signal-amber-soft: #FEF3C7;
+  --zl-signal-coral: #BE123C;
+  --zl-signal-coral-soft: #FFE4E6;
+  --zl-signal-violet: #6D28D9;
+  --zl-signal-violet-soft: #EDE9FE;
+  --zl-signal-gold: #D97706;
+
+  /* 5. Physical Daylight Shadows (Studio 170-Protocol) */
+  --zl-shadow-sm: 0 2px 6px -1px rgba(20, 25, 35, 0.05), 0 1px 3px -1px rgba(20, 25, 35, 0.03);
+  --zl-shadow-md: 0 10px 24px -4px rgba(20, 25, 35, 0.07), 0 4px 10px -2px rgba(20, 25, 35, 0.04);
+  --zl-shadow-lg: 0 20px 40px -8px rgba(20, 25, 35, 0.10), 0 8px 16px -4px rgba(20, 25, 35, 0.05);
+  --zl-shadow-brain: 0 24px 56px -12px rgba(11, 107, 203, 0.16), 0 8px 20px -4px rgba(20, 25, 35, 0.06);
+
+  /* 6. Motion & Choreographed Timing */
+  --zl-ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --zl-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --zl-duration-fast: 180ms;
+  --zl-duration-normal: 320ms;
+  --zl-duration-ambient: 4.5s;
+}
+
+/* ==========================================================================
+   IMMERSIVE WORLD CANVAS & SPATIAL ARCHITECTURE
+   ========================================================================== */
+
+.zl-world-stage {
+  position: relative;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(224, 242, 254, 0.65) 0%, rgba(251, 249, 245, 0.92) 52%, #FBF9F5 100%);
+  border: 1px solid var(--zl-border-subtle);
+  border-radius: 24px;
+  box-shadow: var(--zl-shadow-md);
+  overflow: hidden;
+  padding: 28px;
+}
+
+.zl-world-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(20, 25, 35, 0.055) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==========================================================================
+   CENTRAL INTELLIGENCE BRAIN ENTITY & 11 VISUAL STATES
+   ========================================================================== */
+
+.zl-brain-sanctuary {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 22px 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 249, 245, 0.94) 100%);
+  border: 1.5px solid var(--zl-border-crisp);
+  border-radius: 28px;
+  box-shadow: var(--zl-shadow-brain);
+  transition: transform var(--zl-duration-normal) var(--zl-ease-spring),
+              border-color var(--zl-duration-normal) var(--zl-ease-smooth),
+              box-shadow var(--zl-duration-normal) var(--zl-ease-smooth);
+  cursor: pointer;
+}
+
+.zl-brain-sanctuary:hover {
+  transform: translateY(-3px);
+  border-color: var(--zl-signal-blue);
+}
+
+.zl-brain-visual-frame {
+  position: relative;
+  width: 196px;
+  height: 196px;
+  border-radius: 50%;
+  background: var(--zl-canvas-ivory);
+  border: 2px solid rgba(11, 107, 203, 0.18);
+  box-shadow: inset 0 0 24px rgba(11, 107, 203, 0.08), var(--zl-shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.zl-brain-visual-frame img.zl-brain-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.04);
+  transition: transform 0.6s var(--zl-ease-spring), filter 0.4s ease;
+}
+
+.zl-brain-sanctuary:hover .zl-brain-photo {
+  transform: scale(1.09);
+}
+
+.zl-brain-svg-rig {
+  position: absolute;
+  inset: -6px;
+  width: calc(100% + 12px);
+  height: calc(100% + 12px);
+  pointer-events: none;
+  opacity: 0.78;
+  animation: zl-brain-breathe var(--zl-duration-ambient) ease-in-out infinite;
+}
+
+/* 11 Brain Visual States */
+.zl-brain-state-IDLE_OBSERVING .zl-brain-visual-frame {
+  border-color: rgba(11, 107, 203, 0.25);
+}
+.zl-brain-state-RECEIVING_INSTRUCTION .zl-brain-visual-frame {
+  border-color: var(--zl-signal-cyan);
+  box-shadow: 0 0 0 6px rgba(14, 116, 144, 0.14), var(--zl-shadow-md);
+}
+.zl-brain-state-UNDERSTANDING_DECOMPOSING .zl-brain-visual-frame,
+.zl-brain-state-PLANNING_EVALUATING .zl-brain-visual-frame {
+  border-color: var(--zl-signal-violet);
+  box-shadow: 0 0 0 6px rgba(109, 40, 217, 0.14), var(--zl-shadow-md);
+}
+.zl-brain-state-COORDINATING_SPECIALISTS .zl-brain-visual-frame,
+.zl-brain-state-PROCESSING_INFORMATION .zl-brain-visual-frame {
+  border-color: var(--zl-signal-blue);
+  box-shadow: 0 0 0 8px rgba(11, 107, 203, 0.16), var(--zl-shadow-brain);
+  animation: zl-brain-pulse-ring 2.4s ease-in-out infinite;
+}
+.zl-brain-state-WAITING_FOR_APPROVAL .zl-brain-visual-frame {
+  border-color: var(--zl-signal-amber);
+  box-shadow: 0 0 0 7px rgba(180, 83, 9, 0.16), var(--zl-shadow-md);
+}
+.zl-brain-state-DETECTING_PROBLEM .zl-brain-visual-frame,
+.zl-brain-state-RECOVERING_FROM_ERROR .zl-brain-visual-frame {
+  border-color: var(--zl-signal-coral);
+  box-shadow: 0 0 0 7px rgba(190, 18, 60, 0.16), var(--zl-shadow-md);
+}
+.zl-brain-state-COMPLETING_TASK .zl-brain-visual-frame,
+.zl-brain-state-LEARNING_FROM_OUTCOMES .zl-brain-visual-frame {
+  border-color: var(--zl-signal-emerald);
+  box-shadow: 0 0 0 6px rgba(21, 128, 61, 0.14), var(--zl-shadow-md);
+}
+
+/* ==========================================================================
+   3x2 TACTILE 3D STUDIO MASCOT SPRITE PORTRAITS
+   ========================================================================== */
+
+.zl-mascot-avatar {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background-color: var(--zl-canvas-ivory);
+  background-image: url('/assets/mascot-showcase.jpg');
+  background-size: 300% 200%;
+  background-repeat: no-repeat;
+  border: 2px solid var(--zl-border-crisp);
+  box-shadow: var(--zl-shadow-sm);
+  flex-shrink: 0;
+  transition: transform var(--zl-duration-normal) var(--zl-ease-spring),
+              border-color var(--zl-duration-fast) ease;
+  animation: zl-mascot-float 5s ease-in-out infinite;
+}
+
+.zl-mascot-avatar.zl-mascot-lg {
+  width: 112px;
+  height: 112px;
+  border-radius: 26px;
+}
+
+/* Sprite Coordinates for the 3x2 Showcase Sheet */
+.zl-sprite-reem,
+.zl-sprite-worker_1 { background-position: 0% 0%; }
+.zl-sprite-zaks,
+.zl-sprite-auditor_1 { background-position: 50% 0%; }
+.zl-sprite-sirfaraz { background-position: 100% 0%; }
+.zl-sprite-hadi,
+.zl-sprite-hania { background-position: 0% 100%; }
+.zl-sprite-aroosh { background-position: 50% 100%; }
+.zl-sprite-musab,
+.zl-sprite-default { background-position: 100% 100%; }
+
+/* Mascot Activity States */
+.zl-mascot-status-WORKING .zl-mascot-avatar {
+  border-color: var(--zl-signal-blue);
+  box-shadow: 0 0 0 4px rgba(11, 107, 203, 0.15);
+}
+.zl-mascot-status-BLOCKED .zl-mascot-avatar,
+.zl-mascot-status-ESCALATED .zl-mascot-avatar {
+  border-color: var(--zl-signal-coral);
+  box-shadow: 0 0 0 4px rgba(190, 18, 60, 0.15);
+}
+.zl-mascot-status-PROPOSED .zl-mascot-avatar {
+  border-color: var(--zl-signal-amber);
+  border-style: dashed;
+}
+
+/* ==========================================================================
+   DEPARTMENTAL HABITAT PODS & NEURAL SIGNAL PATHWAYS
+   ========================================================================== */
+
+.zl-habitat-pod {
+  position: relative;
+  z-index: 2;
+  background: var(--zl-surface-card);
+  border: 1px solid var(--zl-border-subtle);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--zl-shadow-sm);
+  transition: transform var(--zl-duration-fast) var(--zl-ease-spring),
+              box-shadow var(--zl-duration-fast) ease,
+              border-color var(--zl-duration-fast) ease;
+  cursor: pointer;
+}
+
+.zl-habitat-pod:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--zl-shadow-md);
+  border-color: var(--zl-signal-blue);
+}
+
+.zl-neural-pathway-line {
+  stroke-dasharray: 8 6;
+  animation: zl-synapse-flow 2.8s linear infinite;
+}
+
+/* ==========================================================================
+   KEYFRAME ANIMATIONS & REDUCED MOTION GOVERNANCE
+   ========================================================================== */
+
+@keyframes zl-brain-breathe {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.03) rotate(3deg); }
+}
+
+@keyframes zl-brain-pulse-ring {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(11, 107, 203, 0.12), var(--zl-shadow-brain); }
+  50% { box-shadow: 0 0 0 12px rgba(11, 107, 203, 0.22), var(--zl-shadow-brain); }
+}
+
+@keyframes zl-mascot-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes zl-synapse-flow {
+  from { stroke-dashoffset: 28; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Reduced & Restrained Motion Accessibility Controls */
+@media (prefers-reduced-motion: reduce) {
+  .zl-brain-svg-rig,
+  .zl-mascot-avatar,
+  .zl-neural-pathway-line,
+  .zl-brain-state-COORDINATING_SPECIALISTS .zl-brain-visual-frame {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+body.motion-reduced .zl-brain-svg-rig,
+body.motion-reduced .zl-mascot-avatar,
+body.motion-reduced .zl-neural-pathway-line,
+body.motion-reduced .zl-brain-visual-frame {
+  animation: none !important;
+  transition: none !important;
+}
+
+body.motion-restrained .zl-mascot-avatar {
+  animation: none !important;
+}
+body.motion-restrained .zl-neural-pathway-line {
+  animation-duration: 6s !important;
+}

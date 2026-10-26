@@ -246,6 +246,16 @@ class Task:
     max_retries: int = 2
     result_summary: Optional[str] = None
     error_message: Optional[str] = None
+    project_id: Optional[str] = None
+    epic_id: Optional[str] = None
+    epic_title: Optional[str] = None
+    feature_id: Optional[str] = None
+    feature_title: Optional[str] = None
+    department: Optional[str] = None
+    priority: str = "NORMAL"
+    acceptance_criteria: list[str] = field(default_factory=list)
+    artifact_paths: list[str] = field(default_factory=list)
+    verification_evidence: Optional[str] = None
     created_at: str = field(default_factory=utc_now_iso)
     updated_at: str = field(default_factory=utc_now_iso)
 
@@ -263,6 +273,16 @@ class Task:
             "max_retries": self.max_retries,
             "result_summary": self.result_summary,
             "error_message": self.error_message,
+            "project_id": self.project_id,
+            "epic_id": self.epic_id,
+            "epic_title": self.epic_title,
+            "feature_id": self.feature_id,
+            "feature_title": self.feature_title,
+            "department": self.department,
+            "priority": self.priority,
+            "acceptance_criteria": list(self.acceptance_criteria),
+            "artifact_paths": list(self.artifact_paths),
+            "verification_evidence": self.verification_evidence,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -282,6 +302,16 @@ class Task:
             max_retries=int(data.get("max_retries", 2)),
             result_summary=data.get("result_summary"),
             error_message=data.get("error_message"),
+            project_id=data.get("project_id"),
+            epic_id=data.get("epic_id"),
+            epic_title=data.get("epic_title"),
+            feature_id=data.get("feature_id"),
+            feature_title=data.get("feature_title"),
+            department=data.get("department"),
+            priority=str(data.get("priority", "NORMAL")),
+            acceptance_criteria=list(data.get("acceptance_criteria", [])),
+            artifact_paths=list(data.get("artifact_paths", [])),
+            verification_evidence=data.get("verification_evidence"),
             created_at=str(data.get("created_at", utc_now_iso())),
             updated_at=str(data.get("updated_at", utc_now_iso())),
         )
@@ -404,4 +434,189 @@ class SpawningProposal:
             decided_at=data.get("decided_at"),
             decision_reason=data.get("decision_reason"),
         )
+
+
+class BrainVisualState(str, Enum):
+    """Real event-driven states for the ZaxterLab Central Brain entity."""
+
+    IDLE_OBSERVING = "IDLE_OBSERVING"
+    RECEIVING_INSTRUCTION = "RECEIVING_INSTRUCTION"
+    UNDERSTANDING_DECOMPOSING = "UNDERSTANDING_DECOMPOSING"
+    PLANNING_EVALUATING = "PLANNING_EVALUATING"
+    COORDINATING_SPECIALISTS = "COORDINATING_SPECIALISTS"
+    PROCESSING_INFORMATION = "PROCESSING_INFORMATION"
+    WAITING_FOR_APPROVAL = "WAITING_FOR_APPROVAL"
+    DETECTING_PROBLEM = "DETECTING_PROBLEM"
+    RECOVERING_FROM_ERROR = "RECOVERING_FROM_ERROR"
+    COMPLETING_TASK = "COMPLETING_TASK"
+    LEARNING_FROM_OUTCOMES = "LEARNING_FROM_OUTCOMES"
+
+
+@dataclass
+class RegisteredSpecialist:
+    """Real, registered, inspectable workforce specialist entity in the ZaxterLab runtime."""
+
+    worker_id: str
+    name: str
+    role: str
+    archetype: str
+    department: str
+    capabilities: list[str] = field(default_factory=list)
+    capability_gap_filled: str = ""
+    instructions: str = ""
+    operating_boundaries: str = ""
+    allowed_tools: list[str] = field(default_factory=list)
+    permission_tier: PermissionTier = PermissionTier.TIER_1_SAFE
+    eligible_for_assignment: bool = True
+    is_temporary: bool = False
+    reusable: bool = True
+    lifecycle_state: str = "ACTIVE"  # DRAFTED, QUALIFIED, ACTIVE, SUSPENDED, RETIRED
+    runtime_status: str = "AVAILABLE"  # AVAILABLE, ASSIGNED, WORKING, WAITING, BLOCKED, UNDER_REVIEW, COMPLETED, RECOVERING
+    current_task_id: Optional[str] = None
+    tasks_completed: int = 0
+    tokens_used: int = 0
+    recent_outputs: list[str] = field(default_factory=list)
+    proposal_id: Optional[str] = None
+    deactivation_rule: str = "Suspend after 30 minutes of idle queue inactivity; preserve episodic memory in SQLite."
+    mascot_profile: dict[str, Any] = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now_iso)
+    updated_at: str = field(default_factory=utc_now_iso)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "worker_id": self.worker_id,
+            "name": self.name,
+            "role": self.role,
+            "archetype": self.archetype,
+            "department": self.department,
+            "capabilities": list(self.capabilities),
+            "capability_gap_filled": self.capability_gap_filled,
+            "instructions": self.instructions,
+            "operating_boundaries": self.operating_boundaries,
+            "allowed_tools": list(self.allowed_tools),
+            "permission_tier": self.permission_tier.value,
+            "eligible_for_assignment": self.eligible_for_assignment,
+            "is_temporary": self.is_temporary,
+            "reusable": self.reusable,
+            "lifecycle_state": self.lifecycle_state,
+            "runtime_status": self.runtime_status,
+            "current_task_id": self.current_task_id,
+            "tasks_completed": self.tasks_completed,
+            "tokens_used": self.tokens_used,
+            "recent_outputs": list(self.recent_outputs),
+            "proposal_id": self.proposal_id,
+            "deactivation_rule": self.deactivation_rule,
+            "mascot_profile": dict(self.mascot_profile),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RegisteredSpecialist:
+        tier_val = data.get("permission_tier", PermissionTier.TIER_1_SAFE.value)
+        return cls(
+            worker_id=str(data.get("worker_id", "")),
+            name=str(data.get("name", "")),
+            role=str(data.get("role", "")),
+            archetype=str(data.get("archetype", "")),
+            department=str(data.get("department", "Engineering")),
+            capabilities=list(data.get("capabilities", [])),
+            capability_gap_filled=str(data.get("capability_gap_filled", "")),
+            instructions=str(data.get("instructions", "")),
+            operating_boundaries=str(data.get("operating_boundaries", "")),
+            allowed_tools=list(data.get("allowed_tools", [])),
+            permission_tier=PermissionTier(tier_val),
+            eligible_for_assignment=bool(data.get("eligible_for_assignment", True)),
+            is_temporary=bool(data.get("is_temporary", False)),
+            reusable=bool(data.get("reusable", True)),
+            lifecycle_state=str(data.get("lifecycle_state", "ACTIVE")),
+            runtime_status=str(data.get("runtime_status", "AVAILABLE")),
+            current_task_id=data.get("current_task_id"),
+            tasks_completed=int(data.get("tasks_completed", 0)),
+            tokens_used=int(data.get("tokens_used", 0)),
+            recent_outputs=list(data.get("recent_outputs", [])),
+            proposal_id=data.get("proposal_id"),
+            deactivation_rule=str(
+                data.get(
+                    "deactivation_rule",
+                    "Suspend after 30 minutes of idle queue inactivity; preserve episodic memory in SQLite.",
+                )
+            ),
+            mascot_profile=dict(data.get("mascot_profile", {})),
+            created_at=str(data.get("created_at", utc_now_iso())),
+            updated_at=str(data.get("updated_at", utc_now_iso())),
+        )
+
+
+@dataclass
+class CompanyProject:
+    """Persistent internal company initiative or customer project record."""
+
+    project_id: str
+    name: str
+    slug: str
+    project_type: str = "INTERNAL_INITIATIVE"  # INTERNAL_INITIATIVE, CUSTOMER_PROJECT, SAAS_VENTURE
+    priority: str = "STRATEGIC"  # STRATEGIC, HIGH, NORMAL
+    objective: str = ""
+    domain: str = "AI Operating System"
+    status: str = "ACTIVE"  # DRAFT, ACTIVE, COMPLETED, BLOCKED
+    current_stage: str = "DEPLOYED_AND_MONITORED"
+    lead_specialist: str = "Sirfaraz"
+    workspace_path: str = ""
+    epics: list[dict[str, Any]] = field(default_factory=list)
+    capability_assessment: dict[str, Any] = field(default_factory=dict)
+    acceptance_criteria: list[dict[str, Any]] = field(default_factory=list)
+    artifacts: list[str] = field(default_factory=list)
+    approvals: list[dict[str, Any]] = field(default_factory=list)
+    spend_usd: float = 0.0
+    created_at: str = field(default_factory=utc_now_iso)
+    updated_at: str = field(default_factory=utc_now_iso)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "name": self.name,
+            "slug": self.slug,
+            "project_type": self.project_type,
+            "priority": self.priority,
+            "objective": self.objective,
+            "domain": self.domain,
+            "status": self.status,
+            "current_stage": self.current_stage,
+            "lead_specialist": self.lead_specialist,
+            "workspace_path": self.workspace_path,
+            "epics": list(self.epics),
+            "capability_assessment": dict(self.capability_assessment),
+            "acceptance_criteria": list(self.acceptance_criteria),
+            "artifacts": list(self.artifacts),
+            "approvals": list(self.approvals),
+            "spend_usd": self.spend_usd,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> CompanyProject:
+        return cls(
+            project_id=str(data.get("project_id", "")),
+            name=str(data.get("name", "")),
+            slug=str(data.get("slug", "")),
+            project_type=str(data.get("project_type", "INTERNAL_INITIATIVE")),
+            priority=str(data.get("priority", "STRATEGIC")),
+            objective=str(data.get("objective", "")),
+            domain=str(data.get("domain", "AI Operating System")),
+            status=str(data.get("status", "ACTIVE")),
+            current_stage=str(data.get("current_stage", "IMPLEMENTATION")),
+            lead_specialist=str(data.get("lead_specialist", "Sirfaraz")),
+            workspace_path=str(data.get("workspace_path", "")),
+            epics=list(data.get("epics", [])),
+            capability_assessment=dict(data.get("capability_assessment", {})),
+            acceptance_criteria=list(data.get("acceptance_criteria", [])),
+            artifacts=list(data.get("artifacts", [])),
+            approvals=list(data.get("approvals", [])),
+            spend_usd=float(data.get("spend_usd", 0.0)),
+            created_at=str(data.get("created_at", utc_now_iso())),
+            updated_at=str(data.get("updated_at", utc_now_iso())),
+        )
+
 

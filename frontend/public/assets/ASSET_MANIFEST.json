@@ -1,0 +1,96 @@
+{
+  "manifest_version": "2.0.0",
+  "project_id": "proj_zaxterlab_immersive_world",
+  "project_title": "ZaxterLab — Immersive Intelligence World Transformation",
+  "design_system": {
+    "theme_mode": "LIGHT_MODE_MANDATORY",
+    "canvas_ivory": "#FBF9F5",
+    "canvas_sky": "#F2F6FA",
+    "surface_card": "#FFFFFF",
+    "designer_intelligence_source": "zakshub/designer (/root/.intelligence/designer)",
+    "studio_intelligence_source": "zakshub/studio (/root/.intelligence/studio — 170-protocol)"
+  },
+  "qc_status": {
+    "design_fit_qc": "PASS",
+    "image_qc": "PASS",
+    "forensic_reality_qc": "PASS",
+    "wcag_contrast_qc": "PASS (AAA on primary text #141923, AA+ on semantic accents)"
+  },
+  "assets": [
+    {
+      "asset_id": "brain-entity-3d",
+      "path": "/assets/brain-entity.jpg",
+      "type": "image/jpeg",
+      "role": "Central Intelligence Brain Entity — 3D Sculptural Porcelain & Optical Glass Core",
+      "lighting_physics": "High-key daylight studio (#FBF9F5) with natural soft contact shadow on matte alabaster pedestal, internal gold/cyan optical refraction",
+      "supported_states": [
+        "IDLE_OBSERVING",
+        "RECEIVING_INSTRUCTION",
+        "UNDERSTANDING_DECOMPOSING",
+        "PLANNING_EVALUATING",
+        "COORDINATING_SPECIALISTS",
+        "PROCESSING_INFORMATION",
+        "WAITING_FOR_APPROVAL",
+        "DETECTING_PROBLEM",
+        "RECOVERING_FROM_ERROR",
+        "COMPLETING_TASK",
+        "LEARNING_FROM_OUTCOMES"
+      ]
+    },
+    {
+      "asset_id": "mascot-showcase-3x2",
+      "path": "/assets/mascot-showcase.jpg",
+      "type": "image/jpeg",
+      "role": "Tactile 3D Studio Mascot Sprite Sheet (3x2 Grid) for Specialist Workforce",
+      "sprite_grid": {
+        "columns": 3,
+        "rows": 2,
+        "background_size": "300% 200%",
+        "cells": {
+          "worker_1": {
+            "specialist": "Reem",
+            "mascot_name": "Koda — The Precision Weaver",
+            "species": "Clockwork Red Panda Artisan",
+            "background_position": "0% 0%"
+          },
+          "auditor_1": {
+            "specialist": "Zaks",
+            "mascot_name": "Aegis — The Sentinel Owl",
+            "species": "Porcelain Barn Owl Guardian",
+            "background_position": "50% 0%"
+          },
+          "sirfaraz": {
+            "specialist": "Sirfaraz",
+            "mascot_name": "Vesper — The Blueprint Fox",
+            "species": "Origami-Crested Silver Fox",
+            "background_position": "100% 0%"
+          },
+          "hadi": {
+            "specialist": "Hadi",
+            "mascot_name": "Bramble — The Discovery Badger",
+            "species": "Tactile Scholar Badger",
+            "background_position": "0% 100%"
+          },
+          "aroosh": {
+            "specialist": "Aroosh",
+            "mascot_name": "Pip — The Verification Otter",
+            "species": "Sea-Glass Inspector Otter",
+            "background_position": "50% 100%"
+          },
+          "musab": {
+            "specialist": "Musab",
+            "mascot_name": "Lumen — The Prism Chameleon",
+            "species": "Iridescent Studio Chameleon",
+            "background_position": "100% 100%"
+          }
+        }
+      }
+    },
+    {
+      "asset_id": "brain-core-svg",
+      "path": "/assets/brain-core.svg",
+      "type": "image/svg+xml",
+      "role": "Interactive Multi-Lobe Vector Synaptic Rig overlaying the Central Brain Entity"
+    }
+  ]
+}

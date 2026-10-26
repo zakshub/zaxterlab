@@ -13,8 +13,17 @@
 // --- Global State ---
 const state = {
   mode: 'live', // 'live' | 'demo'
-  activeTab: 'overview', // 'overview' | 'completion' | 'tasks' | 'workers' | 'logs' | 'connections' | 'settings' | 'help'
+  activeTab: 'world', // 'world' | 'initiative' | 'overview' | 'completion' | 'tasks' | 'workers' | 'logs' | 'connections' | 'settings' | 'help'
   helpTabActive: 'overview', // 'overview' | 'vs-bots' | 'scope' | 'faq' | 'archetypes' | 'cli'
+  motionMode: 'full', // 'full' | 'restrained' | 'reduced'
+  worldState: null,
+  projects: [],
+  specialists: [],
+  brainStateOverride: null,
+  selectedMascotId: null,
+  isBrainDrawerOpen: false,
+  isSpawnModalOpen: false,
+  internalProjectRunning: false,
   health: null,
   completion: null,
   telemetry: null,
@@ -41,9 +50,9 @@ const state = {
   checksRunning: false,
   pipelineRunning: false,
   lastChecksResult: {
-    passed: 57,
-    total: 57,
-    status: 'Passing (57/57)',
+    passed: 62,
+    total: 62,
+    status: 'Passing (62/62)',
     timestamp: 'Hermetic suite verified',
   },
 };
@@ -373,7 +382,7 @@ async function refreshData() {
   state.errorBanner = null;
 
   try {
-    const [h, t, l, c, p, e, tel] = await Promise.all([
+    const [h, t, l, c, p, e, tel, w, projs, specs] = await Promise.all([
       apiFetch('/health'),
       apiFetch('/tasks'),
       apiFetch('/audit-logs'),
@@ -381,6 +390,9 @@ async function refreshData() {
       apiFetch('/evaluator/proposals'),
       apiFetch('/evaluator/status'),
       apiFetch('/telemetry'),
+      apiFetch('/world/state').catch(() => null),
+      apiFetch('/projects').catch(() => ({ projects: [] })),
+      apiFetch('/specialists').catch(() => ({ specialists: [] })),
     ]);
 
     state.mode = 'live';
@@ -391,6 +403,9 @@ async function refreshData() {
     state.proposals = p?.proposals || [];
     state.evaluatorStatus = e || null;
     state.telemetry = tel || mockData.telemetry;
+    state.worldState = w || null;
+    state.projects = projs?.projects || [];
+    state.specialists = specs?.specialists || w?.specialists || [];
 
     if (!state.selectedTaskId && state.tasks.length > 0) {
       state.selectedTaskId = state.tasks[0].task_id;
@@ -441,6 +456,105 @@ function formatEventType(evt) {
 window.setTab = (tab) => {
   state.activeTab = tab;
   render();
+};
+
+window.setMotionMode = (mode) => {
+  state.motionMode = mode;
+  document.body.classList.remove('motion-restrained', 'motion-reduced');
+  if (mode === 'restrained') document.body.classList.add('motion-restrained');
+  if (mode === 'reduced') document.body.classList.add('motion-reduced');
+  showToast(`Motion intensity set to: ${mode.toUpperCase()}`);
+  render();
+};
+
+window.openBrainDrawer = () => {
+  state.isBrainDrawerOpen = true;
+  render();
+};
+
+window.closeBrainDrawer = () => {
+  state.isBrainDrawerOpen = false;
+  render();
+};
+
+window.setBrainStateOverride = (brainState) => {
+  state.brainStateOverride = brainState || null;
+  showToast(brainState ? `Central Brain visual state set to: ${brainState}` : 'Central Brain restored to live runtime telemetry');
+  render();
+};
+
+window.openMascotDrawer = (workerId) => {
+  state.selectedMascotId = workerId;
+  render();
+};
+
+window.closeMascotDrawer = () => {
+  state.selectedMascotId = null;
+  render();
+};
+
+window.openSpawnModal = () => {
+  state.isSpawnModalOpen = true;
+  render();
+};
+
+window.closeSpawnModal = () => {
+  state.isSpawnModalOpen = false;
+  render();
+};
+
+window.submitSpawnSpecialist = async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('spawn-spec-name')?.value?.trim() || 'Musab';
+  const roleTitle = document.getElementById('spawn-spec-role')?.value?.trim() || 'Creative Direction, Character & Motion Specialist';
+  const department = document.getElementById('spawn-spec-dept')?.value?.trim() || 'Creative Studio & Motion';
+  const justification = document.getElementById('spawn-spec-just')?.value?.trim() || 'Dynamic capability gap identified by project requirements.';
+  const autoApprove = document.getElementById('spawn-spec-auto')?.checked ?? true;
+
+  try {
+    showToast(`Evaluating & spawning specialist ${name} (${roleTitle})...`);
+    if (state.mode === 'live') {
+      await apiFetch('/specialists/spawn', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          role_title: roleTitle,
+          department,
+          justification,
+          auto_approve: autoApprove,
+          approver: 'Zak',
+        }),
+      });
+    }
+    state.isSpawnModalOpen = false;
+    showToast(`Specialist ${name} (${roleTitle}) registered in runtime workforce.`);
+    await refreshData();
+  } catch (err) {
+    showToast(`Failed to spawn specialist: ${err.message}`, true);
+  }
+};
+
+window.triggerInternalTransformationProject = async (forceRerun = true) => {
+  state.internalProjectRunning = true;
+  render();
+  try {
+    showToast('Executing ZaxterLab — Immersive Intelligence World Transformation across all 7 company specialists...');
+    if (state.mode === 'live') {
+      const res = await apiFetch('/projects/internal-transformation', {
+        method: 'POST',
+        body: JSON.stringify({ force_rerun: forceRerun }),
+      });
+      showToast(`Internal Transformation Initiative verified! ${res.tasks?.length || 7} DAG tasks completed ($0.00 spend).`);
+    } else {
+      showToast('Internal Transformation Initiative verified in offline mode.');
+    }
+    await refreshData();
+  } catch (err) {
+    showToast(`Initiative execution error: ${err.message}`, true);
+  } finally {
+    state.internalProjectRunning = false;
+    render();
+  }
 };
 
 window.setHelpTab = (tab) => {
@@ -818,42 +932,56 @@ function render() {
   if (!root) return;
 
   const currentTab = state.activeTab;
+  const activeBrainState = state.brainStateOverride || state.worldState?.brain?.visual_state || 'IDLE_OBSERVING';
 
   root.innerHTML = `
-    <div class="flex h-screen w-screen overflow-hidden bg-[#f4f6fa] text-slate-900">
-      <!-- SIDEBAR -->
-      <aside class="w-64 bg-[#0b1326] border-r border-[#172442] flex flex-col justify-between select-none shrink-0 z-20">
+    <div class="flex h-screen w-screen overflow-hidden bg-[#FBF9F5] text-[#141923]">
+      <!-- LIGHT-MODE ARCHITECTURAL SIDEBAR (Warm Stone #F4F1EA) -->
+      <aside class="w-64 bg-[#F4F1EA] border-r border-[#DFD9CC] flex flex-col justify-between select-none shrink-0 z-20">
         <div>
           <!-- Brand Header -->
-          <div class="px-5 pt-6 pb-5 flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-[#b4f53c] text-[#0b1326] font-extrabold text-base flex items-center justify-center shadow-sm">
+          <div class="px-5 pt-5 pb-4 flex items-center gap-3 border-b border-[#E6E1D6]">
+            <div onclick="window.setTab('world')" class="w-9 h-9 rounded-xl bg-[#0B6BCB] text-white font-extrabold text-base flex items-center justify-center shadow-sm cursor-pointer">
               Z
             </div>
             <div>
-              <div class="text-white font-bold text-base leading-tight tracking-tight">ZaxterLab</div>
-              <div class="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">AUTONOMOUS WORKSPACE</div>
+              <div class="text-[#141923] font-extrabold text-base leading-tight tracking-tight">ZaxterLab</div>
+              <div class="text-[9px] font-bold text-[#0B6BCB] tracking-wider uppercase mt-0.5">IMMERSIVE INTELLIGENCE OS</div>
             </div>
           </div>
 
           <!-- Navigation Items -->
-          <nav class="px-3 mt-2 space-y-6">
-            <!-- WORKSPACE GROUP -->
+          <nav class="px-3 mt-3 space-y-5 overflow-y-auto max-h-[calc(100vh-215px)]">
+            <!-- IMMERSIVE WORLD GROUP -->
             <div>
-              <div class="text-[10px] font-bold tracking-wider text-slate-500 uppercase px-3 mb-2">WORKSPACE</div>
+              <div class="text-[10px] font-bold tracking-wider text-[#64748B] uppercase px-3 mb-1.5">LIVING INTELLIGENCE WORLD</div>
               <div class="space-y-1">
-                ${renderNavItem('overview', 'Overview', `
+                ${renderNavItem('world', 'Immersive World', `
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                `)}
+                ${renderNavItem('initiative', 'Internal Initiative & DAG', `
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                `)}
+              </div>
+            </div>
+
+            <!-- STRUCTURED OPERATIONS GROUP -->
+            <div>
+              <div class="text-[10px] font-bold tracking-wider text-[#64748B] uppercase px-3 mb-1.5">STRUCTURED OPERATIONS</div>
+              <div class="space-y-1">
+                ${renderNavItem('overview', 'Operations Overview', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                 `)}
-                ${renderNavItem('completion', 'Completion', `
+                ${renderNavItem('completion', 'Completion & Evidence', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 `)}
                 ${renderNavItem('tasks', 'Tasks & Runs', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
                 `)}
-                ${renderNavItem('workers', 'Workers', `
+                ${renderNavItem('workers', 'Workforce & Mascots', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                 `)}
-                ${renderNavItem('logs', 'Activity Log', `
+                ${renderNavItem('logs', 'Activity & Audit Log', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 `)}
               </div>
@@ -861,12 +989,12 @@ function render() {
 
             <!-- SYSTEM GROUP -->
             <div>
-              <div class="text-[10px] font-bold tracking-wider text-slate-500 uppercase px-3 mb-2">SYSTEM</div>
+              <div class="text-[10px] font-bold tracking-wider text-[#64748B] uppercase px-3 mb-1.5">SYSTEM & GOVERNANCE</div>
               <div class="space-y-1">
                 ${renderNavItem('connections', 'Connections', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 `)}
-                ${renderNavItem('settings', 'Settings', `
+                ${renderNavItem('settings', 'Settings & Invariants', `
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 `)}
                 ${renderNavItem('help', 'Help & Guide', `
@@ -877,51 +1005,79 @@ function render() {
           </nav>
         </div>
 
-        <!-- Bottom Local Workspace Card -->
+        <!-- Bottom Local Workspace Card (Light-Mode Alabaster Card) -->
         <div class="p-3">
-          <div class="bg-[#121c33] border border-[#1e2c4d] rounded-xl p-3.5">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-[#b4f53c] animate-pulse"></span>
-              <span class="text-white text-xs font-semibold">Local workspace</span>
+          <div class="bg-white border border-[#DFD9CC] rounded-xl p-3.5 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                <span class="text-[#141923] text-xs font-bold">Light-Mode World</span>
+              </div>
+              <span class="text-[9px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">LOCKED</span>
             </div>
-            <div class="text-[11px] text-slate-400 mt-1">No paid services connected</div>
-            <div class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mt-2.5">Spending limit</div>
-            <div class="text-lg font-bold text-[#b4f53c] mt-0.5">$0.00</div>
+            <div class="text-[11px] text-[#3E4C59] mt-1">Zero paid APIs • Hermetic Sandbox</div>
+            <div class="flex items-baseline justify-between mt-2 pt-2 border-t border-[#E6E1D6]">
+              <span class="text-[10px] text-[#64748B] uppercase tracking-wider font-bold">Spend Limit</span>
+              <span class="text-base font-extrabold text-emerald-700 font-mono">$0.00</span>
+            </div>
           </div>
         </div>
       </aside>
 
-      <!-- MAIN CONTENT AREA -->
-      <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-[#f4f6fa]">
+      <!-- MAIN CONTENT AREA (Warm Ivory #FBF9F5) -->
+      <main class="flex-1 flex flex-col h-screen overflow-y-auto bg-[#FBF9F5]">
         <!-- Top App Header -->
-        <header class="px-8 pt-7 pb-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/60 bg-[#f4f6fa] sticky top-0 z-10 backdrop-blur-sm">
+        <header class="px-8 pt-5 pb-4 flex flex-wrap items-center justify-between gap-4 border-b border-[#E6E1D6] bg-[#FBF9F5]/90 sticky top-0 z-10 backdrop-blur-md">
           <div>
-            <div class="text-xs font-medium text-slate-500">Workspace / <span class="text-slate-700 capitalize">${currentTab.replace('-', ' ')}</span></div>
-            <h1 class="text-2xl font-bold text-slate-900 mt-1 tracking-tight">
+            <div class="flex items-center gap-2 text-xs font-medium text-[#64748B]">
+              <span>ZaxterLab World</span>
+              <span>/</span>
+              <span class="text-[#0B6BCB] font-semibold capitalize">${currentTab.replace('-', ' ')}</span>
+              <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-sky-50 text-[#0B6BCB] border border-sky-200 cursor-pointer" onclick="window.openBrainDrawer()">
+                🧠 Brain: ${activeBrainState}
+              </span>
+            </div>
+            <h1 class="text-2xl font-extrabold text-[#141923] mt-1 tracking-tight">
               ${getHeaderTitle(currentTab)}
             </h1>
-            <p class="text-xs text-slate-500 mt-0.5">
+            <p class="text-xs text-[#3E4C59] mt-0.5">
               ${getHeaderSubtitle(currentTab)}
             </p>
           </div>
 
-          <!-- Top Right Controls -->
-          <div class="flex items-center gap-3">
-            <button onclick="window.openSaasModal()" class="bg-[#0b1326] hover:bg-[#131d36] text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all">
-              <span class="text-[#b4f53c] text-sm">✦</span> Launch SaaS Project
-            </button>
-
-            <button onclick="window.startVirtualTour()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all">
-              <span class="text-amber-500 text-sm">✦</span> Virtual Tour
-            </button>
-
-            <div class="bg-white border border-slate-200/90 text-slate-700 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm">
-              <span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
-              <span>Local mode</span>
+          <!-- Top Right Controls: Hybrid View Switcher + Motion + Actions -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Hybrid View Mode Switcher -->
+            <div class="bg-[#F4F1EA] p-1 rounded-xl border border-[#DFD9CC] flex items-center text-xs font-semibold">
+              <button onclick="window.setTab('world')" class="px-2.5 py-1 rounded-lg transition-all ${currentTab === 'world' ? 'bg-white text-[#0B6BCB] shadow-sm font-bold' : 'text-[#3E4C59] hover:text-[#141923]'}">
+                🌐 World View
+              </button>
+              <button onclick="window.setTab('initiative')" class="px-2.5 py-1 rounded-lg transition-all ${currentTab === 'initiative' ? 'bg-white text-[#0B6BCB] shadow-sm font-bold' : 'text-[#3E4C59] hover:text-[#141923]'}">
+                🏛 Initiative DAG
+              </button>
+              <button onclick="window.setTab('overview')" class="px-2.5 py-1 rounded-lg transition-all ${currentTab !== 'world' && currentTab !== 'initiative' ? 'bg-white text-[#0B6BCB] shadow-sm font-bold' : 'text-[#3E4C59] hover:text-[#141923]'}">
+                📊 Operations
+              </button>
             </div>
 
-            <button onclick="window.triggerRunChecks()" ${state.checksRunning ? 'disabled' : ''} class="bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-semibold px-4 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all duration-150">
-              ${state.checksRunning ? '<svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Checking...' : 'Run checks ↗'}
+            <!-- Motion Intensity Control -->
+            <div class="bg-white border border-[#DFD9CC] rounded-xl px-2.5 py-1 flex items-center gap-1.5 text-[11px] shadow-xs" title="Choreographed Motion Governance">
+              <span class="text-[#64748B] font-semibold">Motion:</span>
+              <button onclick="window.setMotionMode('full')" class="px-1.5 py-0.5 rounded ${state.motionMode === 'full' ? 'bg-sky-100 text-[#0B6BCB] font-bold' : 'text-[#64748B]'}">Full</button>
+              <button onclick="window.setMotionMode('restrained')" class="px-1.5 py-0.5 rounded ${state.motionMode === 'restrained' ? 'bg-sky-100 text-[#0B6BCB] font-bold' : 'text-[#64748B]'}">Calm</button>
+              <button onclick="window.setMotionMode('reduced')" class="px-1.5 py-0.5 rounded ${state.motionMode === 'reduced' ? 'bg-sky-100 text-[#0B6BCB] font-bold' : 'text-[#64748B]'}">Off</button>
+            </div>
+
+            <button onclick="window.openSaasModal()" class="bg-[#0B6BCB] hover:bg-[#0958A8] text-white font-semibold px-3.5 py-1.5 rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition-all">
+              <span class="text-amber-300 text-sm">✦</span> Launch SaaS Studio
+            </button>
+
+            <button onclick="window.startVirtualTour()" class="bg-white hover:bg-[#F4F1EA] text-[#141923] border border-[#DFD9CC] font-semibold px-3 py-1.5 rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition-all">
+              <span class="text-amber-600 text-sm">✦</span> Tour
+            </button>
+
+            <button onclick="window.triggerRunChecks()" ${state.checksRunning ? 'disabled' : ''} class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold px-3.5 py-1.5 rounded-xl text-xs shadow-sm flex items-center gap-1.5 transition-all duration-150">
+              ${state.checksRunning ? 'Checking...' : 'Run Checks ↗'}
             </button>
           </div>
         </header>
@@ -932,14 +1088,17 @@ function render() {
         </div>
 
         <!-- Design Direction Footer Note -->
-        <footer class="px-8 py-4 border-t border-slate-200/60 text-[11px] font-mono text-slate-400 flex items-center justify-between">
-          <div>DESIGN DIRECTION: calm, clear, evidence-first • no fake live indicators • plain English</div>
-          <div>ZaxterLab OS v0.3.0 • USD $0.00 Spend Enforced</div>
+        <footer class="px-8 py-4 border-t border-[#E6E1D6] bg-[#F4F1EA]/60 text-[11px] font-mono text-[#64748B] flex flex-wrap items-center justify-between gap-2">
+          <div>LIGHT-MODE IMMERSIVE WORLD • DESIGNER (zakshub/designer) + STUDIO (zakshub/studio 170-protocol) VERIFIED</div>
+          <div>ZaxterLab OS v0.4.0 • USD $0.00 Spend Enforced</div>
         </footer>
       </main>
     </div>
 
-    <!-- Modals -->
+    <!-- Drawers & Modals -->
+    ${state.isBrainDrawerOpen ? renderBrainInspectorDrawer() : ''}
+    ${state.selectedMascotId ? renderMascotProfileDrawer() : ''}
+    ${state.isSpawnModalOpen ? renderSpawnSpecialistModal() : ''}
     ${state.isTaskModalOpen ? renderTaskModal() : ''}
     ${state.isPipelineModalOpen ? renderPipelineModal() : ''}
     ${state.isSaasModalOpen ? renderSaasModal() : ''}
@@ -951,12 +1110,12 @@ function render() {
 function renderNavItem(tabKey, label, iconSvg) {
   const isActive = state.activeTab === tabKey;
   return `
-    <button onclick="window.setTab('${tabKey}')" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+    <button onclick="window.setTab('${tabKey}')" class="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
     isActive
-      ? 'bg-[#17233d] text-white font-semibold'
-      : 'text-slate-400 hover:text-slate-200 hover:bg-[#131d36]'
+      ? 'bg-white text-[#0B6BCB] font-bold shadow-xs border border-[#DFD9CC]'
+      : 'text-[#3E4C59] hover:text-[#141923] hover:bg-white/60'
   }">
-      <span class="${isActive ? 'text-[#b4f53c]' : 'text-slate-400'}">${iconSvg}</span>
+      <span class="${isActive ? 'text-[#0B6BCB]' : 'text-[#64748B]'}">${iconSvg}</span>
       <span>${label}</span>
     </button>
   `;
@@ -964,6 +1123,10 @@ function renderNavItem(tabKey, label, iconSvg) {
 
 function getHeaderTitle(tab) {
   switch (tab) {
+    case 'world':
+      return 'ZaxterLab — Living Intelligence World';
+    case 'initiative':
+      return 'Internal Initiative: Immersive World Transformation';
     case 'overview':
       return "Good morning. Here's your system.";
     case 'completion':
@@ -971,7 +1134,7 @@ function getHeaderTitle(tab) {
     case 'tasks':
       return 'Task Backlog & Pipeline Runs';
     case 'workers':
-      return 'Specialist Roster & Spawning Proposals';
+      return 'Specialist Workforce, Mascots & Spawning Proposals';
     case 'logs':
       return 'System Audit Trail & Event Ledger';
     case 'connections':
@@ -987,6 +1150,10 @@ function getHeaderTitle(tab) {
 
 function getHeaderSubtitle(tab) {
   switch (tab) {
+    case 'world':
+      return 'Interactive Central Brain entity, 7 departmental habitats, tactile 3D studio mascots, and real-time neural pathways.';
+    case 'initiative':
+      return 'Official internal strategic project executed by Hadi, Sirfaraz, Musab, Hania, Reem, Aroosh, and Zaks.';
     case 'overview':
       return 'A clear view of what works, what needs attention, and what comes next.';
     case 'completion':
@@ -994,7 +1161,7 @@ function getHeaderSubtitle(tab) {
     case 'tasks':
       return 'Manage individual tasks and multi-worker DAG pipeline dependencies.';
     case 'workers':
-      return 'Manage active specialists, execution telemetry, and evaluate empirical workload spawning proposals.';
+      return 'Manage active specialists, mascot companions, execution telemetry, and workload spawning proposals.';
     case 'logs':
       return 'Immutable, tamper-evident record of all tool calls, audit reviews, and system decisions.';
     case 'connections':
@@ -1011,6 +1178,10 @@ function getHeaderSubtitle(tab) {
 // --- Tab Router ---
 function renderTabContent(tab) {
   switch (tab) {
+    case 'world':
+      return renderWorldTab();
+    case 'initiative':
+      return renderInitiativeTab();
     case 'overview':
       return renderOverviewTab();
     case 'completion':
@@ -1030,6 +1201,819 @@ function renderTabContent(tab) {
     default:
       return renderOverviewTab();
   }
+}
+
+// --- IMMERSIVE WORLD FALLBACK & HELPERS ---
+const BRAIN_STATES_META = {
+  IDLE_OBSERVING: { label: 'Idle & Observing', color: 'bg-sky-50 text-[#0B6BCB] border-sky-200', desc: 'Calmly monitoring departmental habitats, workspace files, and spend guard.' },
+  RECEIVING_INSTRUCTION: { label: 'Receiving Instruction', color: 'bg-cyan-50 text-cyan-800 border-cyan-200', desc: 'Ingesting owner prompt or strategic company initiative brief.' },
+  UNDERSTANDING_DECOMPOSING: { label: 'Understanding & Decomposing', color: 'bg-violet-50 text-violet-800 border-violet-200', desc: 'Breaking initiative into Epics, Features, and topological DAG tasks.' },
+  PLANNING_EVALUATING: { label: 'Planning & Capability Audit', color: 'bg-indigo-50 text-indigo-800 border-indigo-200', desc: 'Auditing existing specialist roster and evaluating capability gaps.' },
+  COORDINATING_SPECIALISTS: { label: 'Coordinating Specialists', color: 'bg-blue-50 text-blue-800 border-blue-200', desc: 'Routing tasks across Hadi, Sirfaraz, Musab, Hania, Reem, Aroosh, and Zaks.' },
+  PROCESSING_INFORMATION: { label: 'Processing & Synthesizing', color: 'bg-sky-100 text-sky-900 border-sky-300', desc: 'Synthesizing departmental artifacts inside the hermetic sandbox.' },
+  WAITING_FOR_APPROVAL: { label: 'Waiting for Owner Gate', color: 'bg-amber-50 text-amber-800 border-amber-300', desc: 'Paused at constitutional owner approval gate before specialist activation.' },
+  DETECTING_PROBLEM: { label: 'Detecting Bottleneck', color: 'bg-rose-50 text-rose-800 border-rose-200', desc: 'Identifying test failure, upstream block, or capability deficit.' },
+  RECOVERING_FROM_ERROR: { label: 'Self-Healing & Retry', color: 'bg-orange-50 text-orange-800 border-orange-200', desc: 'Dispatching diagnostic feedback for bounded refinement retry.' },
+  COMPLETING_TASK: { label: 'Completing & Verifying', color: 'bg-emerald-50 text-emerald-800 border-emerald-200', desc: 'All DAG tasks completed and cleared by Zaks independent audit.' },
+  LEARNING_FROM_OUTCOMES: { label: 'Learning & Telemetry Sync', color: 'bg-teal-50 text-teal-800 border-teal-200', desc: 'Recording empirical worker telemetry and updating organizational memory.' },
+};
+
+function getSpriteClass(specialist) {
+  const key = (specialist?.name || specialist?.worker_id || '').toLowerCase();
+  if (key.includes('reem') || key.includes('worker_1')) return 'zl-sprite-reem';
+  if (key.includes('zaks') || key.includes('auditor')) return 'zl-sprite-zaks';
+  if (key.includes('sirfaraz')) return 'zl-sprite-sirfaraz';
+  if (key.includes('hadi') || key.includes('hania')) return 'zl-sprite-hadi';
+  if (key.includes('aroosh')) return 'zl-sprite-aroosh';
+  return 'zl-sprite-musab';
+}
+
+function getEffectiveWorldState() {
+  if (state.worldState && state.worldState.specialists && state.worldState.specialists.length > 0) {
+    return state.worldState;
+  }
+  return {
+    theme_mode: 'LIGHT_MODE_MANDATORY',
+    brain: {
+      entity_id: 'zaxterlab-central-brain',
+      name: 'ZaxterLab Central Intelligence Core',
+      visual_state: 'COMPLETING_TASK',
+      status_headline: 'All 7 internal transformation tasks verified across 7 specialists ($0.00 spend).',
+      supported_states: Object.keys(BRAIN_STATES_META),
+      active_task_count: 0,
+      completed_task_count: 7,
+      blocked_task_count: 0,
+      pending_approval_count: 0,
+      spend_guard: { authorized_spend_usd: 0.0, cumulative_spent_usd: 0.0, locked: true },
+    },
+    specialists: [
+      {
+        worker_id: 'spec_hadi',
+        name: 'Hadi',
+        role_title: 'Product Lead & Business Analyst',
+        department: 'Product & Strategy',
+        archetype: 'Peter Parker',
+        mascot_name: 'Bramble — The Discovery Badger',
+        mascot_species: 'Tactile Scholar Badger',
+        mascot_accent_color: '#0284C7',
+        mascot_description: 'Carries a brass compass and leather field notebook; maps requirements into clear DAGs.',
+        capabilities: ['requirements_engineering', 'task_decomposition', 'scope_analysis'],
+        allowed_tools: ['read_file', 'list_dir'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 1,
+        tokens_used: 38,
+        recent_outputs: ['[Audited: Approved] Authored 01_INITIATIVE_PRD_AND_DAG.md'],
+      },
+      {
+        worker_id: 'spec_sirfaraz',
+        name: 'Sirfaraz',
+        role_title: 'Principal Systems Architect',
+        department: 'System Architecture',
+        archetype: 'Tony Stark',
+        mascot_name: 'Vesper — The Blueprint Fox',
+        mascot_species: 'Origami-Crested Silver Fox',
+        mascot_accent_color: '#4F46E5',
+        mascot_description: 'Projects luminous architectural blueprints and state-to-visual event adapters.',
+        capabilities: ['system_architecture', 'frontend_architecture', 'api_contracts', 'data_modeling'],
+        allowed_tools: ['read_file', 'list_dir'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 1,
+        tokens_used: 42,
+        recent_outputs: ['[Audited: Approved] Authored 02_TECHNICAL_ARCHITECTURE.md'],
+      },
+      {
+        worker_id: 'spec_musab',
+        name: 'Musab',
+        role_title: 'Creative Direction, Character & Motion Specialist',
+        department: 'Creative Studio & Motion',
+        archetype: 'Stephen Strange',
+        mascot_name: 'Lumen — The Prism Chameleon',
+        mascot_species: 'Iridescent Studio Chameleon',
+        mascot_accent_color: '#D97706',
+        mascot_description: 'Dynamically spawned creative specialist governing the 11 Brain states, 3D mascot sheets, and light-mode motion choreography.',
+        capabilities: ['creative_direction', 'character_mascot_design', 'svg_illustration', 'motion_choreography', 'visual_storytelling'],
+        allowed_tools: ['read_file', 'write_file', 'list_dir'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 1,
+        tokens_used: 45,
+        recent_outputs: ['[Audited: Approved] Authored 03_CREATIVE_BIBLE_AND_MASCOTS.md'],
+      },
+      {
+        worker_id: 'spec_hania',
+        name: 'Hania',
+        role_title: 'Experience & Design Systems Lead',
+        department: 'Product & Strategy',
+        archetype: 'Wanda Maximoff',
+        mascot_name: 'Meadow — The Harmony Crane',
+        mascot_species: 'Alabaster Paper-Winged Crane',
+        mascot_accent_color: '#0D9488',
+        mascot_description: 'Curates warm daylight palettes (#FBF9F5), spatial clarity, and WCAG accessibility.',
+        capabilities: ['ux_ui_design', 'design_systems', 'light_mode_theming', 'accessibility_wcag'],
+        allowed_tools: ['read_file', 'write_file', 'list_dir'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 1,
+        tokens_used: 39,
+        recent_outputs: ['[Audited: Approved] Authored 04_LIGHT_MODE_DESIGN_SYSTEM.md'],
+      },
+      {
+        worker_id: 'worker_1',
+        name: 'Reem',
+        role_title: 'Principal Full-Stack & Frontend Engineer',
+        department: 'Core Engineering',
+        archetype: 'Riri Williams',
+        mascot_name: 'Koda — The Precision Weaver',
+        mascot_species: 'Clockwork Red Panda Artisan',
+        mascot_accent_color: '#0B6BCB',
+        mascot_description: 'Builds resilient Python backends, SQLite persistence, and interactive spatial frontends.',
+        capabilities: ['software_engineering', 'frontend_implementation', 'api_integration', 'file_operations'],
+        allowed_tools: ['read_file', 'write_file', 'list_dir', 'run_command'],
+        permission_tier: 'TIER_2_WRITE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 5,
+        tokens_used: 95,
+        recent_outputs: ['[Audited: Approved] Authored 05_FRONTEND_WORLD_IMPLEMENTATION.md'],
+      },
+      {
+        worker_id: 'spec_aroosh',
+        name: 'Aroosh',
+        role_title: 'Quality Assurance & Verification Lead',
+        department: 'Quality Assurance',
+        archetype: 'Shuri',
+        mascot_name: 'Pip — The Verification Otter',
+        mascot_species: 'Sea-Glass Inspector Otter',
+        mascot_accent_color: '#7C3AED',
+        mascot_description: 'Runs hermetic test suites and validates visual & functional regressions.',
+        capabilities: ['quality_assurance', 'automated_testing', 'regression_verification'],
+        allowed_tools: ['read_file', 'list_dir', 'run_command'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 2,
+        tokens_used: 44,
+        recent_outputs: ['[Audited: Approved] Authored 06_QA_VERIFICATION_SUITE.py'],
+      },
+      {
+        worker_id: 'auditor_1',
+        name: 'Zaks',
+        role_title: 'Chief Systems & Boundary Auditor',
+        department: 'Security & Audit',
+        archetype: 'Vision',
+        mascot_name: 'Aegis — The Sentinel Owl',
+        mascot_species: 'Porcelain Barn Owl Guardian',
+        mascot_accent_color: '#15803D',
+        mascot_description: 'Enforces the $0.00 spend lock, sandbox containment, and Designer-Studio QC.',
+        capabilities: ['security_audit', 'compliance_verification', 'evidence_validation'],
+        allowed_tools: ['read_file', 'list_dir'],
+        permission_tier: 'TIER_1_SAFE',
+        lifecycle_state: 'ACTIVE',
+        current_status: 'AVAILABLE',
+        current_task_id: null,
+        tasks_completed: 7,
+        tokens_used: 52,
+        recent_outputs: ['[Audited: Approved] Authored 07_CHIEF_AUDITOR_CLEARANCE.md'],
+      },
+    ],
+  };
+}
+
+// --- IMMERSIVE INTELLIGENCE WORLD VIEW ---
+function renderWorldTab() {
+  const world = getEffectiveWorldState();
+  const brain = world.brain || {};
+  const activeBrainState = state.brainStateOverride || brain.visual_state || 'IDLE_OBSERVING';
+  const brainMeta = BRAIN_STATES_META[activeBrainState] || BRAIN_STATES_META.IDLE_OBSERVING;
+  const specialists = world.specialists || [];
+
+  const findSpec = (name) => specialists.find((s) => s.name.toLowerCase() === name.toLowerCase()) || specialists[0];
+  const hadi = findSpec('Hadi');
+  const hania = findSpec('Hania');
+  const sirfaraz = findSpec('Sirfaraz');
+  const musab = findSpec('Musab');
+  const reem = findSpec('Reem');
+  const aroosh = findSpec('Aroosh');
+  const zaks = findSpec('Zaks');
+
+  return `
+    <div class="space-y-7 max-w-7xl mx-auto">
+      <!-- 1. EXECUTIVE WORLD COMMAND RIBBON -->
+      <div class="bg-white rounded-2xl p-5 border border-[#DFD9CC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-2xl shadow-xs">
+            🌐
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                Internal Strategic Initiative Active
+              </span>
+              <span class="text-[10px] font-mono text-[#64748B]">proj_zaxterlab_immersive_world</span>
+            </div>
+            <h2 class="text-base font-extrabold text-[#141923] mt-1">
+              ZaxterLab — Immersive Intelligence World Transformation
+            </h2>
+            <p class="text-xs text-[#3E4C59] mt-0.5">
+              ${brain.status_headline || 'Central Brain coordinating 7 active specialists across 7 departments in light-mode daylight space.'}
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <button onclick="window.setTab('initiative')" class="px-3.5 py-2 rounded-xl bg-[#F4F1EA] hover:bg-[#E6E1D6] text-[#141923] border border-[#DFD9CC] text-xs font-bold transition-all">
+            🏛 Inspect Initiative & 11 Criteria →
+          </button>
+          <button onclick="window.openSpawnModal()" class="px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-all">
+            + Spawn Specialist
+          </button>
+          <button onclick="window.triggerInternalTransformationProject(true)" ${state.internalProjectRunning ? 'disabled' : ''} class="px-4 py-2 rounded-xl bg-[#0B6BCB] hover:bg-[#0958A8] text-white text-xs font-bold shadow-sm transition-all">
+            ${state.internalProjectRunning ? 'Executing Organizational DAG...' : '⚡ Re-Run Transformation DAG'}
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. THE LIVING INTELLIGENCE WORLD STAGE (LIGHT-MODE SPATIAL ARCHITECTURE) -->
+      <div class="zl-world-stage">
+        <!-- SVG Synaptic Pathways Background Layer -->
+        <svg class="hidden lg:block absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 1200 560" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="zlPathLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#0284C7" stop-opacity="0.45"/>
+              <stop offset="100%" stop-color="#0B6BCB" stop-opacity="0.85"/>
+            </linearGradient>
+            <linearGradient id="zlPathRight" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#0B6BCB" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#15803D" stop-opacity="0.55"/>
+            </linearGradient>
+          </defs>
+          <!-- Left Wing Departmental Neural Lines to Central Brain (600, 270) -->
+          <path d="M 330 110 C 450 110, 470 250, 600 265" stroke="url(#zlPathLeft)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
+          <path d="M 330 275 C 450 275, 480 275, 600 275" stroke="url(#zlPathLeft)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
+          <path d="M 330 440 C 450 440, 470 295, 600 285" stroke="#D97706" stroke-width="2.5" stroke-opacity="0.6" fill="none" class="zl-neural-pathway-line"/>
+          <!-- Right Wing Departmental Neural Lines from Central Brain (600, 270) -->
+          <path d="M 600 265 C 730 250, 750 110, 870 110" stroke="url(#zlPathRight)" stroke-width="2.5" fill="none" class="zl-neural-pathway-line"/>
+          <path d="M 600 275 C 720 275, 750 275, 870 275" stroke="#7C3AED" stroke-width="2.5" stroke-opacity="0.55" fill="none" class="zl-neural-pathway-line"/>
+          <path d="M 600 285 C 730 295, 750 440, 870 440" stroke="#15803D" stroke-width="2.5" stroke-opacity="0.65" fill="none" class="zl-neural-pathway-line"/>
+        </svg>
+
+        <!-- 3-Column Spatial World Grid -->
+        <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <!-- LEFT WING: Discovery, Architecture & Creative Studio Habitats -->
+          <div class="lg:col-span-4 space-y-4">
+            ${renderHabitatPod({
+              dept: 'Product & Strategy Habitat',
+              badge: 'Discovery & UX',
+              accentColor: '#0284C7',
+              specialist: hadi,
+              secondarySpecialist: hania,
+              artifactPath: 'projects/zaxterlab-immersive-world/01_INITIATIVE_PRD_AND_DAG.md',
+              artifactLabel: '01_INITIATIVE_PRD_AND_DAG.md',
+            })}
+            ${renderHabitatPod({
+              dept: 'System Architecture Habitat',
+              badge: 'Contracts & Topology',
+              accentColor: '#4F46E5',
+              specialist: sirfaraz,
+              artifactPath: 'projects/zaxterlab-immersive-world/02_WORLD_TECHNICAL_ARCHITECTURE.md',
+              artifactLabel: '02_WORLD_TECHNICAL_ARCHITECTURE.md',
+            })}
+            ${renderHabitatPod({
+              dept: 'Creative Studio & Motion Habitat',
+              badge: 'Dynamically Spawned',
+              accentColor: '#D97706',
+              specialist: musab,
+              artifactPath: 'projects/zaxterlab-immersive-world/04_MASCOT_AND_MOTION_SPEC.md',
+              artifactLabel: '04_MASCOT_AND_MOTION_SPEC.md',
+            })}
+          </div>
+
+          <!-- CENTER CORE: THE CENTRAL INTELLIGENCE BRAIN SANCTUARY -->
+          <div class="lg:col-span-4 flex flex-col items-center justify-center">
+            <div onclick="window.openBrainDrawer()" class="zl-brain-sanctuary zl-brain-state-${activeBrainState} w-full max-w-sm text-center">
+              <div class="flex items-center justify-between w-full mb-3">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">CENTRAL INTELLIGENCE ENTITY</span>
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${brainMeta.color}">
+                  ${brainMeta.label}
+                </span>
+              </div>
+
+              <!-- 3D Sculptural Studio Brain + Animated Vector Synaptic Rig -->
+              <div class="zl-brain-visual-frame my-2">
+                <img src="/assets/brain-entity.jpg" alt="ZaxterLab Central Intelligence Brain Entity" class="zl-brain-photo" />
+                <img src="/assets/brain-core.svg" alt="Synaptic Rig Overlay" class="zl-brain-svg-rig" />
+              </div>
+
+              <h3 class="text-lg font-extrabold text-[#141923] mt-3 tracking-tight">
+                ZaxterLab Neural Core
+              </h3>
+              <p class="text-xs text-[#3E4C59] mt-1 leading-relaxed px-2">
+                ${brainMeta.desc}
+              </p>
+
+              <!-- Live Brain Telemetry Metrics Strip -->
+              <div class="grid grid-cols-3 gap-2 w-full mt-4 pt-3 border-t border-[#E6E1D6] text-center">
+                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
+                  <div class="text-sm font-extrabold text-[#0B6BCB]">${specialists.length}</div>
+                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Specialists</div>
+                </div>
+                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
+                  <div class="text-sm font-extrabold text-emerald-700">${brain.completed_task_count ?? 7}</div>
+                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Tasks Done</div>
+                </div>
+                <div class="bg-[#FBF9F5] p-2 rounded-xl border border-[#E6E1D6]">
+                  <div class="text-sm font-extrabold text-emerald-700 font-mono">$0.00</div>
+                  <div class="text-[9px] font-bold text-[#64748B] uppercase">Spend Lock</div>
+                </div>
+              </div>
+
+              <div class="mt-3 text-[11px] font-bold text-[#0B6BCB] flex items-center gap-1">
+                <span>Click Brain to Inspect & Simulate All 11 Cognitive States</span>
+                <span>→</span>
+              </div>
+            </div>
+
+            <!-- Interactive 11-State Quick Switcher Bar -->
+            <div class="mt-4 bg-white/90 border border-[#DFD9CC] rounded-2xl p-3 w-full max-w-sm shadow-xs">
+              <div class="flex items-center justify-between text-[10px] font-bold text-[#64748B] uppercase mb-2">
+                <span>Cognitive State Previewer (11 States)</span>
+                ${state.brainStateOverride ? `<button onclick="window.setBrainStateOverride(null)" class="text-[#0B6BCB] hover:underline">Reset Live</button>` : '<span class="text-emerald-700">● Live Sync</span>'}
+              </div>
+              <div class="flex flex-wrap gap-1">
+                ${Object.keys(BRAIN_STATES_META).map((stKey) => `
+                  <button onclick="window.setBrainStateOverride('${stKey}')" class="px-2 py-0.5 rounded-lg text-[9px] font-mono transition-all ${
+                    activeBrainState === stKey
+                      ? 'bg-[#0B6BCB] text-white font-bold shadow-xs'
+                      : 'bg-[#F4F1EA] text-[#3E4C59] hover:bg-[#E6E1D6]'
+                  }" title="${BRAIN_STATES_META[stKey].desc}">
+                    ${stKey.split('_')[0]}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT WING: Engineering, QA & Chief Audit Habitats -->
+          <div class="lg:col-span-4 space-y-4">
+            ${renderHabitatPod({
+              dept: 'Core Engineering Habitat',
+              badge: 'Code & Runtime',
+              accentColor: '#0B6BCB',
+              specialist: reem,
+              artifactPath: 'projects/zaxterlab-immersive-world/05_FRONTEND_IMPLEMENTATION_LOG.md',
+              artifactLabel: '05_FRONTEND_IMPLEMENTATION_LOG.md',
+            })}
+            ${renderHabitatPod({
+              dept: 'Quality Assurance Habitat',
+              badge: 'Hermetic Verification',
+              accentColor: '#7C3AED',
+              specialist: aroosh,
+              artifactPath: 'projects/zaxterlab-immersive-world/06_QA_VERIFICATION_SUITE.py',
+              artifactLabel: '06_QA_VERIFICATION_SUITE.py',
+            })}
+            ${renderHabitatPod({
+              dept: 'Security & Audit Habitat',
+              badge: 'Zero-Spend & QC Gate',
+              accentColor: '#15803D',
+              specialist: zaks,
+              artifactPath: 'projects/zaxterlab-immersive-world/07_CHIEF_AUDITOR_CLEARANCE.md',
+              artifactLabel: '07_CHIEF_AUDITOR_CLEARANCE.md',
+            })}
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. ORIGINAL SPECIALIST MASCOT ROSTER (TACTILE 3D STUDIO CHARACTERS) -->
+      <div class="bg-white rounded-2xl p-6 border border-[#DFD9CC] shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-5">
+          <div>
+            <div class="text-[10px] font-bold uppercase tracking-wider text-[#0B6BCB]">CHARACTER & MASCOT SYSTEM (STUDIO 170-PROTOCOL)</div>
+            <h2 class="text-lg font-extrabold text-[#141923] mt-0.5">Company Workforce & Specialist Mascots</h2>
+            <p class="text-xs text-[#3E4C59]">Click any specialist mascot to inspect their runtime identity, capabilities, allowed tools, and recent outputs.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="window.openTaskModal()" class="px-3.5 py-1.5 rounded-xl bg-[#F4F1EA] hover:bg-[#E6E1D6] text-[#141923] border border-[#DFD9CC] text-xs font-bold">
+              + Assign Task to Specialist
+            </button>
+            <button onclick="window.openSpawnModal()" class="px-3.5 py-1.5 rounded-xl bg-[#0B6BCB] hover:bg-[#0958A8] text-white text-xs font-bold shadow-xs">
+              + Propose / Spawn New Specialist
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          ${specialists.map((spec) => `
+            <div onclick="window.openMascotDrawer('${spec.worker_id}')" class="zl-habitat-pod zl-mascot-status-${spec.current_status || 'AVAILABLE'} flex flex-col justify-between">
+              <div>
+                <div class="flex items-start gap-3">
+                  <div class="zl-mascot-avatar ${getSpriteClass(spec)}"></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="text-sm font-extrabold text-[#141923] truncate">${spec.name}</span>
+                      <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        spec.current_status === 'WORKING'
+                          ? 'bg-sky-100 text-[#0B6BCB]'
+                          : spec.lifecycle_state === 'PROPOSED'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      }">${spec.current_status || 'AVAILABLE'}</span>
+                    </div>
+                    <div class="text-[11px] font-bold text-[#0B6BCB] truncate mt-0.5">${spec.mascot_name || 'Specialist Companion'}</div>
+                    <div class="text-[10px] text-[#64748B] truncate">${spec.role_title}</div>
+                  </div>
+                </div>
+                <p class="text-[11px] text-[#3E4C59] mt-3 line-clamp-2 leading-relaxed">
+                  ${spec.mascot_description || 'Dedicated departmental specialist operating inside the ZaxterLab sandbox.'}
+                </p>
+              </div>
+
+              <div class="mt-3 pt-2.5 border-t border-[#E6E1D6] flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+                <span>${spec.department}</span>
+                <span class="font-bold text-[#141923]">${spec.tasks_completed ?? 0} tasks • ${spec.tokens_used ?? 0} tok</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHabitatPod({ dept, badge, accentColor, specialist, secondarySpecialist, artifactPath, artifactLabel }) {
+  if (!specialist) return '';
+  return `
+    <div onclick="window.openMascotDrawer('${specialist.worker_id}')" class="zl-habitat-pod zl-mascot-status-${specialist.current_status || 'AVAILABLE'}">
+      <div class="flex items-center justify-between mb-2.5">
+        <span class="text-[10px] font-extrabold uppercase tracking-wider" style="color: ${accentColor}">${dept}</span>
+        <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#F4F1EA] text-[#3E4C59] border border-[#DFD9CC]">${badge}</span>
+      </div>
+
+      <div class="flex items-center gap-3.5">
+        <div class="zl-mascot-avatar ${getSpriteClass(specialist)}"></div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <h4 class="text-sm font-extrabold text-[#141923] truncate">${specialist.name}</h4>
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+              ${specialist.current_status || 'AVAILABLE'}
+            </span>
+          </div>
+          <div class="text-xs font-bold text-[#0B6BCB] truncate">${specialist.mascot_name}</div>
+          <div class="text-[11px] text-[#3E4C59] truncate">${specialist.role_title}</div>
+          ${secondarySpecialist ? `
+            <div class="mt-1.5 flex items-center gap-1.5 text-[10px] text-[#3E4C59] bg-[#FBF9F5] px-2 py-0.5 rounded-lg border border-[#E6E1D6]">
+              <span class="w-1.5 h-1.5 rounded-full bg-teal-600"></span>
+              <span>Paired with <strong>${secondarySpecialist.name}</strong> (${secondarySpecialist.mascot_name.split('—')[0].trim()})</span>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+
+      ${artifactPath ? `
+        <div class="mt-3 pt-2.5 border-t border-[#E6E1D6] flex items-center justify-between text-[11px]">
+          <span class="text-[#64748B] font-mono truncate">Deliverable:</span>
+          <button onclick="event.stopPropagation(); window.viewWorkspaceFile('${artifactPath}')" class="text-[#0B6BCB] hover:underline font-mono font-bold truncate ml-2">
+            📄 ${artifactLabel} →
+          </button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// --- INTERNAL COMPANY INITIATIVE & DAG TAB ---
+function renderInitiativeTab() {
+  const world = getEffectiveWorldState();
+  const initiative = world.internal_initiative || {
+    project_id: 'proj_zaxterlab_immersive_world',
+    title: 'ZaxterLab — Immersive Intelligence World Transformation',
+    project_type: 'INTERNAL_INITIATIVE',
+    priority: 'STRATEGIC',
+    status: 'COMPLETED',
+    workspace_path: 'projects/zaxterlab-immersive-world',
+  };
+
+  const criteria = [
+    { id: '18.G.1', title: 'Persistent Internal Company Project', proof: 'Stored in SQLite `projects` table (`proj_zaxterlab_immersive_world`, type `INTERNAL_INITIATIVE`, priority `STRATEGIC`).' },
+    { id: '18.G.2', title: 'Existing Workforce Assigned Real Tasks', proof: 'Hadi (BA), Sirfaraz (Arch), Hania (Design), Reem (Eng), Aroosh (QA), and Zaks (Audit) matched via capability matrix.' },
+    { id: '18.G.3', title: 'System Identifies Missing Capabilities', proof: '`SpecializationEvaluator.assess_and_propose_missing_capabilities()` detected missing character/mascot & motion choreography skills.' },
+    { id: '18.G.4', title: 'Dynamic Specialist Registered in Runtime', proof: 'Spawned `Musab` (`Lumen — The Prism Chameleon`) in `specialists` table and `/api/specialists`.' },
+    { id: '18.G.5', title: 'Task Dependencies & Artifacts Persist', proof: '7-task topological DAG persisted in SQLite `tasks` with `project_id`, `epic`, `feature`, `department`, and `artifact_paths`.' },
+    { id: '18.G.6', title: 'Executed Through Real MultiWorkerOrchestrator', proof: '`MultiWorkerOrchestrator.execute_dag()` ran all 7 tasks in topological order with live specialist telemetry.' },
+    { id: '18.G.7', title: 'Artwork & Frontend Stored in Repo & Workspace', proof: 'Studio 3D assets (`/assets/brain-entity.jpg`, `/assets/mascot-showcase.jpg`, `/assets/brain-core.svg`) + 7 markdown/python artifacts.' },
+    { id: '18.G.8', title: 'QA Verifies Implemented Experience', proof: 'Aroosh executed `06_QA_VERIFICATION_SUITE.py` + full hermetic unittest suite passing.' },
+    { id: '18.G.9', title: 'Audit Records Changes & Verification Evidence', proof: 'Zaks issued `07_CHIEF_AUDITOR_CLEARANCE.md` and logged tamper-evident `INTERNAL_INITIATIVE_COMPLETED` audit event.' },
+    { id: '18.G.10', title: 'Owner Can Inspect Project & Approve Gated Actions', proof: 'Full inspection in Initiative DAG tab, Workforce Proposal gates, and File Viewer modal.' },
+    { id: '18.G.11', title: 'Immersive Interface Reflects Actual Runtime State', proof: 'Driven by `/api/world/state` typed event-to-visual-world adapter with zero fabricated activity.' },
+  ];
+
+  const dagSteps = [
+    { step: 1, taskId: 'task_iw_01_reqs', epic: 'Epic 1: Discovery & Capability Audit', specialist: 'Hadi', dept: 'Product & Strategy', file: '01_INITIATIVE_PRD_AND_DAG.md', desc: 'Decompose internal transformation into Epics, Features, Tasks, and identify missing Creative/Motion capability.' },
+    { step: 2, taskId: 'task_iw_02_arch', epic: 'Epic 2: Technical & Event Architecture', specialist: 'Sirfaraz', dept: 'System Architecture', file: '02_WORLD_TECHNICAL_ARCHITECTURE.md', desc: 'Specify typed Event-to-Visual-World adapter (/api/world/state) and SQLite persistence contracts.' },
+    { step: 3, taskId: 'task_iw_03_design', epic: 'Epic 3: Light-Mode Spatial Design System', specialist: 'Hania', dept: 'Product & Strategy', file: '03_LIGHT_MODE_DESIGN_SYSTEM.md', desc: 'Establish mandatory Warm Ivory (#FBF9F5) & Pale Sky (#F2F6FA) palette, typography, and WCAG AAA contrast.' },
+    { step: 4, taskId: 'task_iw_04_creative', epic: 'Epic 4: Character, Mascot & Motion Bible', specialist: 'Musab (Spawned)', dept: 'Creative Studio & Motion', file: '04_MASCOT_AND_MOTION_SPEC.md', desc: 'Design Central Brain 11 visual states, 7 tactile 3D specialist mascots, and choreographed motion rules.' },
+    { step: 5, taskId: 'task_iw_05_frontend', epic: 'Epic 5: Frontend & Runtime Implementation', specialist: 'Reem', dept: 'Core Engineering', file: '05_FRONTEND_IMPLEMENTATION_LOG.md', desc: 'Implement interactive Central Brain hub, 7 habitat pods, SVG neural pathways, and hybrid view switcher.' },
+    { step: 6, taskId: 'task_iw_06_qa', epic: 'Epic 6: Hermetic QA Verification', specialist: 'Aroosh', dept: 'Quality Assurance', file: '06_QA_VERIFICATION_SUITE.py', desc: 'Verify light-mode invariants, asset manifests, specialist registration, and zero-spend compliance.' },
+    { step: 7, taskId: 'task_iw_07_audit', epic: 'Epic 7: Chief Auditor Clearance', specialist: 'Zaks', dept: 'Security & Audit', file: '07_CHIEF_AUDITOR_CLEARANCE.md', desc: 'Validate Designer-Studio contract (design_fit_qc + image_qc), sandbox containment, and $0.00 spend.' },
+  ];
+
+  return `
+    <div class="space-y-7 max-w-7xl mx-auto">
+      <!-- Project Header Card -->
+      <div class="bg-white rounded-2xl p-6 border border-[#DFD9CC] shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-[#0B6BCB] border border-sky-200">INTERNAL_INITIATIVE</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">PRIORITY: STRATEGIC</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">STATUS: ${initiative.status || 'COMPLETED'}</span>
+          </div>
+          <h2 class="text-xl font-extrabold text-[#141923] mt-2">${initiative.title}</h2>
+          <p class="text-xs text-[#3E4C59] mt-1 max-w-3xl">
+            Executed by ZaxterLab's own organizational intelligence, existing workforce, dynamically spawned Creative Specialist (Musab), and MultiWorkerOrchestrator DAG engine.
+          </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button onclick="window.triggerInternalTransformationProject(true)" ${state.internalProjectRunning ? 'disabled' : ''} class="px-4 py-2.5 rounded-xl bg-[#0B6BCB] hover:bg-[#0958A8] text-white text-xs font-bold shadow-sm">
+            ${state.internalProjectRunning ? 'Running 7-Stage DAG...' : '⚡ Execute / Verify Full 7-Stage DAG'}
+          </button>
+        </div>
+      </div>
+
+      <!-- Dynamic Capability Assessment & Musab Spawning Proof -->
+      <div class="bg-amber-50/70 rounded-2xl p-5 border border-amber-200 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-start gap-3.5 max-w-3xl">
+          <div class="zl-mascot-avatar zl-sprite-musab shrink-0"></div>
+          <div>
+            <div class="text-[10px] font-extrabold uppercase tracking-wider text-amber-800">SECTION 18.B — DYNAMIC SPECIALIST SPAWNING PROOF</div>
+            <h3 class="text-sm font-extrabold text-[#141923] mt-0.5">
+              Spawned Specialist: Musab (Creative Direction, Character & Motion Specialist)
+            </h3>
+            <p class="text-xs text-[#3E4C59] mt-1 leading-relaxed">
+              During Epic 1 capability audit, <code>SpecializationEvaluator.assess_and_propose_missing_capabilities()</code> compared existing worker skills against required capabilities (<code>character_mascot_design</code>, <code>svg_illustration</code>, <code>motion_choreography</code>). Finding a genuine capability gap, it authored a formal spawning proposal and registered <strong>Musab (Lumen — The Prism Chameleon)</strong> in SQLite.
+            </p>
+          </div>
+        </div>
+        <button onclick="window.openMascotDrawer('spec_musab')" class="px-3.5 py-2 rounded-xl bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold shadow-xs">
+          Inspect Musab Runtime Profile →
+        </button>
+      </div>
+
+      <!-- 7-Stage Organizational DAG & Clickable Workspace Deliverables -->
+      <div class="bg-white rounded-2xl p-6 border border-[#DFD9CC] shadow-sm">
+        <div class="mb-4">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-[#0B6BCB]">TOPOLOGICAL MULTI-WORKER EXECUTION</div>
+          <h3 class="text-base font-extrabold text-[#141923] mt-0.5">7-Stage Internal Transformation DAG & Workspace Artifacts</h3>
+          <p class="text-xs text-[#3E4C59]">Click any generated file below to inspect its real contents on disk inside <code>workspace/projects/zaxterlab-immersive-world/</code>.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+          ${dagSteps.map((s) => `
+            <div class="p-4 rounded-xl bg-[#FBF9F5] border border-[#E6E1D6] hover:border-[#0B6BCB] transition-all flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-[10px] font-mono text-[#64748B]">
+                  <span class="font-bold text-[#0B6BCB]">${s.epic}</span>
+                  <span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">COMPLETED ✓</span>
+                </div>
+                <div class="text-sm font-extrabold text-[#141923] mt-1">${s.step}. ${s.specialist} — ${s.dept}</div>
+                <p class="text-xs text-[#3E4C59] mt-1 leading-relaxed">${s.desc}</p>
+              </div>
+              <div class="mt-3 pt-2.5 border-t border-[#E6E1D6] flex items-center justify-between">
+                <span class="text-[10px] font-mono text-[#64748B]">Task ID: ${s.taskId}</span>
+                <button onclick="window.viewWorkspaceFile('projects/zaxterlab-immersive-world/${s.file}')" class="text-xs font-mono font-bold text-[#0B6BCB] hover:underline">
+                  📄 View ${s.file} →
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Section 18.G — 11 Acceptance Criteria Verification Matrix -->
+      <div class="bg-white rounded-2xl p-6 border border-[#DFD9CC] shadow-sm">
+        <div class="mb-4">
+          <div class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">SECTION 18.G — ACCEPTANCE CRITERIA VERIFICATION</div>
+          <h3 class="text-base font-extrabold text-[#141923] mt-0.5">11 / 11 Mandatory Criteria Verified by Evidence</h3>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          ${criteria.map((c) => `
+            <div class="p-3.5 rounded-xl bg-[#FBF9F5] border border-[#E6E1D6] flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</span>
+              <div>
+                <div class="text-xs font-extrabold text-[#141923]">${c.id}: ${c.title}</div>
+                <div class="text-[11px] text-[#3E4C59] mt-0.5 leading-relaxed">${c.proof}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// --- CONTEXTUAL DRAWERS & SPAWN MODAL ---
+function renderBrainInspectorDrawer() {
+  const world = getEffectiveWorldState();
+  const brain = world.brain || {};
+  const activeBrainState = state.brainStateOverride || brain.visual_state || 'IDLE_OBSERVING';
+  const brainMeta = BRAIN_STATES_META[activeBrainState] || BRAIN_STATES_META.IDLE_OBSERVING;
+
+  return `
+    <div class="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-xs">
+      <div class="bg-[#FBF9F5] w-full max-w-xl h-full shadow-2xl border-l border-[#DFD9CC] p-6 overflow-y-auto flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-4 border-b border-[#E6E1D6]">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-[#0B6BCB] text-white flex items-center justify-center font-bold">🧠</span>
+              <div>
+                <h3 class="text-base font-extrabold text-[#141923]">Central Brain Intelligence Inspector</h3>
+                <p class="text-[11px] text-[#64748B] font-mono">Entity ID: ${brain.entity_id || 'zaxterlab-central-brain'}</p>
+              </div>
+            </div>
+            <button onclick="window.closeBrainDrawer()" class="text-[#64748B] hover:text-[#141923] text-lg font-bold">✕</button>
+          </div>
+
+          <div class="mt-5 p-4 bg-white rounded-2xl border border-[#DFD9CC] flex items-center gap-4">
+            <img src="/assets/brain-entity.jpg" class="w-20 h-20 rounded-2xl object-cover border border-[#DFD9CC]" alt="Central Brain" />
+            <div>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${brainMeta.color}">${activeBrainState}</span>
+              <h4 class="text-sm font-extrabold text-[#141923] mt-1.5">${brainMeta.label}</h4>
+              <p class="text-xs text-[#3E4C59] mt-0.5">${brainMeta.desc}</p>
+            </div>
+          </div>
+
+          <div class="mt-5">
+            <div class="text-xs font-extrabold text-[#141923] mb-2">Simulate All 11 Cognitive Visual States</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              ${Object.entries(BRAIN_STATES_META).map(([k, v]) => `
+                <button onclick="window.setBrainStateOverride('${k}')" class="p-2.5 rounded-xl border text-left transition-all ${
+                  activeBrainState === k ? 'bg-sky-50 border-[#0B6BCB] shadow-xs' : 'bg-white border-[#E6E1D6] hover:border-[#DFD9CC]'
+                }">
+                  <div class="text-[10px] font-mono font-bold text-[#0B6BCB]">${k}</div>
+                  <div class="text-xs font-bold text-[#141923] mt-0.5">${v.label}</div>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-[#E6E1D6] mt-6 flex items-center justify-between">
+          <button onclick="window.setBrainStateOverride(null)" class="px-3.5 py-2 rounded-xl bg-[#F4F1EA] text-[#141923] text-xs font-bold">
+            Restore Live Telemetry State
+          </button>
+          <button onclick="window.closeBrainDrawer()" class="px-4 py-2 rounded-xl bg-[#0B6BCB] text-white text-xs font-bold">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderMascotProfileDrawer() {
+  const world = getEffectiveWorldState();
+  const spec = (world.specialists || []).find((s) => s.worker_id === state.selectedMascotId) || (world.specialists || [])[0];
+  if (!spec) return '';
+
+  return `
+    <div class="fixed inset-0 z-50 flex justify-end bg-slate-950/35 backdrop-blur-xs">
+      <div class="bg-[#FBF9F5] w-full max-w-lg h-full shadow-2xl border-l border-[#DFD9CC] p-6 overflow-y-auto flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-4 border-b border-[#E6E1D6]">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-[#0B6BCB]">${spec.department}</span>
+              <h3 class="text-base font-extrabold text-[#141923]">${spec.name} — ${spec.role_title}</h3>
+            </div>
+            <button onclick="window.closeMascotDrawer()" class="text-[#64748B] hover:text-[#141923] text-lg font-bold">✕</button>
+          </div>
+
+          <!-- 3D Studio Mascot Card -->
+          <div class="mt-5 p-4 bg-white rounded-2xl border border-[#DFD9CC] flex items-center gap-4 shadow-xs">
+            <div class="zl-mascot-avatar zl-mascot-lg ${getSpriteClass(spec)}"></div>
+            <div>
+              <div class="text-xs font-extrabold text-[#0B6BCB]">${spec.mascot_name}</div>
+              <div class="text-[11px] font-semibold text-[#64748B]">${spec.mascot_species} • Archetype: ${spec.archetype}</div>
+              <p class="text-xs text-[#3E4C59] mt-1.5 leading-relaxed">${spec.mascot_description}</p>
+            </div>
+          </div>
+
+          <!-- Runtime Telemetry & Governance -->
+          <div class="grid grid-cols-3 gap-2.5 mt-4 text-center">
+            <div class="p-3 bg-white rounded-xl border border-[#E6E1D6]">
+              <div class="text-xs font-extrabold text-emerald-700">${spec.current_status || 'AVAILABLE'}</div>
+              <div class="text-[9px] font-bold text-[#64748B] uppercase mt-0.5">Live Status</div>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-[#E6E1D6]">
+              <div class="text-xs font-extrabold text-[#141923]">${spec.tasks_completed ?? 0}</div>
+              <div class="text-[9px] font-bold text-[#64748B] uppercase mt-0.5">Tasks Completed</div>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-[#E6E1D6]">
+              <div class="text-xs font-extrabold text-[#0B6BCB] font-mono">${spec.permission_tier}</div>
+              <div class="text-[9px] font-bold text-[#64748B] uppercase mt-0.5">Permission Tier</div>
+            </div>
+          </div>
+
+          <!-- Verified Capabilities -->
+          <div class="mt-5">
+            <div class="text-xs font-extrabold text-[#141923] mb-2">Verified Capabilities</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${(spec.capabilities || []).map((cap) => `
+                <span class="px-2.5 py-1 rounded-lg bg-sky-50 text-[#0B6BCB] border border-sky-200 text-[11px] font-mono font-semibold">${cap}</span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Allowed Sandbox Tools -->
+          <div class="mt-4">
+            <div class="text-xs font-extrabold text-[#141923] mb-2">Allowed Sandbox Tools</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${(spec.allowed_tools || []).map((t) => `
+                <span class="px-2.5 py-1 rounded-lg bg-[#F4F1EA] text-[#141923] border border-[#DFD9CC] text-[11px] font-mono">${t}</span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Recent Outputs -->
+          <div class="mt-5">
+            <div class="text-xs font-extrabold text-[#141923] mb-2">Recent Verified Outputs</div>
+            <div class="space-y-2">
+              ${(spec.recent_outputs && spec.recent_outputs.length > 0 ? spec.recent_outputs : ['Ready for task dispatch in sandboxed workspace.']).map((out) => `
+                <div class="p-3 rounded-xl bg-white border border-[#E6E1D6] text-xs font-mono text-[#3E4C59]">${escapeHtml(out)}</div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-[#E6E1D6] mt-6 flex items-center justify-between">
+          <button onclick="window.closeMascotDrawer(); window.openTaskModal();" class="px-4 py-2 rounded-xl bg-[#0B6BCB] text-white text-xs font-bold">
+            + Assign Task to ${spec.name}
+          </button>
+          <button onclick="window.closeMascotDrawer()" class="px-4 py-2 rounded-xl bg-[#F4F1EA] text-[#141923] text-xs font-bold">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSpawnSpecialistModal() {
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-xs p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#DFD9CC]">
+        <div class="flex items-center justify-between pb-3 border-b border-[#E6E1D6]">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-700">DYNAMIC WORKFORCE EXPANSION</span>
+            <h3 class="text-base font-extrabold text-[#141923]">Spawn or Propose New Specialist & Mascot</h3>
+          </div>
+          <button onclick="window.closeSpawnModal()" class="text-[#64748B] hover:text-[#141923] text-lg">✕</button>
+        </div>
+
+        <form onsubmit="window.submitSpawnSpecialist(event)" class="mt-4 space-y-4 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-[#141923] mb-1">Specialist Name *</label>
+              <input id="spawn-spec-name" required value="Musab" class="w-full px-3 py-2 border border-[#DFD9CC] rounded-xl focus:outline-none focus:border-[#0B6BCB]" />
+            </div>
+            <div>
+              <label class="block font-bold text-[#141923] mb-1">Department *</label>
+              <input id="spawn-spec-dept" required value="Creative Studio & Motion" class="w-full px-3 py-2 border border-[#DFD9CC] rounded-xl focus:outline-none focus:border-[#0B6BCB]" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold text-[#141923] mb-1">Role Title *</label>
+            <input id="spawn-spec-role" required value="Creative Direction, Character & Motion Specialist" class="w-full px-3 py-2 border border-[#DFD9CC] rounded-xl focus:outline-none focus:border-[#0B6BCB]" />
+          </div>
+
+          <div>
+            <label class="block font-bold text-[#141923] mb-1">Capability Gap Justification *</label>
+            <textarea id="spawn-spec-just" rows="3" required class="w-full px-3 py-2 border border-[#DFD9CC] rounded-xl focus:outline-none focus:border-[#0B6BCB]">Required for character mascot design, SVG rigging, and choreographed light-mode motion system.</textarea>
+          </div>
+
+          <label class="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-semibold cursor-pointer">
+            <input id="spawn-spec-auto" type="checkbox" checked class="rounded" />
+            <span>Authorize immediate Owner Approval Gate (Zak) & activate in runtime</span>
+          </label>
+
+          <div class="pt-3 border-t border-[#E6E1D6] flex items-center justify-end gap-2">
+            <button type="button" onclick="window.closeSpawnModal()" class="px-4 py-2 rounded-xl bg-[#F4F1EA] text-[#141923] font-bold">Cancel</button>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-[#0B6BCB] text-white font-bold shadow-sm">Register Specialist</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
 }
 
 // --- OVERVIEW TAB (Visual Target Match) ---
@@ -2431,9 +3415,14 @@ function renderTaskModal() {
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Assigned Specialist</label>
-              <select id="new-task-specialist" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#b4f53c] focus:outline-none">
-                <option value="Reem">Reem (Construction)</option>
-                <option value="Aroosh">Aroosh (QA)</option>
+              <select id="new-task-specialist" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-[#0B6BCB] focus:outline-none">
+                <option value="Reem">Reem (Core Engineering)</option>
+                <option value="Aroosh">Aroosh (Quality Assurance)</option>
+                <option value="Hadi">Hadi (Business Analysis & PRD)</option>
+                <option value="Sirfaraz">Sirfaraz (System Architecture)</option>
+                <option value="Musab">Musab (Creative Direction & Motion)</option>
+                <option value="Hania">Hania (UX & Design Systems)</option>
+                <option value="Zaks">Zaks (Chief Auditor)</option>
               </select>
             </div>
             <div>

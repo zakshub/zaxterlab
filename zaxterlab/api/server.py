@@ -34,9 +34,9 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
         """Silence default stderr log spam; keep execution hermetic."""
         pass
 
-    def _set_headers(self, status_code: int = 200) -> None:
+    def _set_headers(self, status_code: int = 200, content_type: str = "application/json; charset=utf-8") -> None:
         self.send_response(status_code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -73,6 +73,10 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                 ".css": "text/css; charset=utf-8",
                 ".json": "application/json; charset=utf-8",
                 ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".webp": "image/webp",
+                ".ico": "image/x-icon",
                 ".svg": "image/svg+xml",
             }
             ctype = content_types.get(target_file.suffix, "application/octet-stream")
@@ -158,6 +162,25 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                 elif path == "/api/telemetry":
                     self._send_json(self.service.get_performance_telemetry())
 
+                elif path == "/api/world/state":
+                    self._send_json(self.service.get_world_state())
+
+                elif path == "/api/specialists":
+                    lifecycle = query.get("lifecycle_state", [None])[0]
+                    self._send_json(self.service.list_specialists(lifecycle_state=lifecycle))
+
+                elif path == "/api/projects":
+                    project_type = query.get("project_type", [None])[0]
+                    self._send_json(self.service.list_projects(project_type=project_type))
+
+                elif path.startswith("/api/projects/"):
+                    parts = path.split("/")
+                    if len(parts) == 4:
+                        project_id = parts[3]
+                        self._send_json(self.service.get_project_details(project_id))
+                    else:
+                        self._send_error("NOT_FOUND", "Unknown project endpoint", 404)
+
                 else:
                     self._send_error("NOT_FOUND", f"Endpoint '{path}' not found.", 404)
 
@@ -195,6 +218,10 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
             ".css": "text/css; charset=utf-8",
             ".json": "application/json; charset=utf-8",
             ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".ico": "image/x-icon",
             ".svg": "image/svg+xml",
         }
         ctype = content_types.get(target_file.suffix, "application/octet-stream")
@@ -228,6 +255,13 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
 
             elif path == "/api/project/saas":
                 self._send_json(self.service.launch_saas_project(body), status_code=201)
+
+            elif path == "/api/projects/internal-transformation":
+                force_rerun = bool(body.get("force_rerun", False))
+                self._send_json(self.service.execute_internal_transformation_project(force_rerun=force_rerun))
+
+            elif path == "/api/specialists/spawn":
+                self._send_json(self.service.spawn_or_propose_specialist(body), status_code=201)
 
             elif path.startswith("/api/tasks/") and path.endswith("/execute"):
                 parts = path.split("/")

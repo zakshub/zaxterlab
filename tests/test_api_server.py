@@ -274,6 +274,92 @@ class TestAPIServer(unittest.TestCase):
         self.assertIn("Chief Auditor: Zaks", audit_res["content"])
         self.assertIn("APPROVED", audit_res["content"])
 
+    def test_internal_transformation_initiative_and_immersive_world_api(self):
+        """Verify Section 18: Internal Company Project — ZaxterLab's Own Immersive Transformation."""
+        # 1. Trigger internal transformation initiative via API
+        status, init_res = self._http_post("/api/projects/internal-transformation", {"force_rerun": True})
+        self.assertEqual(status, 200)
+        project = init_res["project"]
+        self.assertEqual(project["project_id"], "proj_zaxterlab_immersive_world")
+        self.assertEqual(project["project_type"], "INTERNAL_INITIATIVE")
+        self.assertEqual(project["priority"], "STRATEGIC")
+        self.assertEqual(project["status"], "COMPLETED")
+        self.assertEqual(len(init_res["tasks"]), 7)
+
+        # 2. Verify all 7 departmental artifacts exist on disk in workspace/projects/zaxterlab-immersive-world/
+        expected_artifacts = [
+            "01_INITIATIVE_PRD_AND_DAG.md",
+            "02_WORLD_TECHNICAL_ARCHITECTURE.md",
+            "03_LIGHT_MODE_DESIGN_SYSTEM.md",
+            "04_MASCOT_AND_MOTION_SPEC.md",
+            "05_FRONTEND_IMPLEMENTATION_LOG.md",
+            "06_QA_VERIFICATION_SUITE.py",
+            "07_CHIEF_AUDITOR_CLEARANCE.md",
+        ]
+        init_dir = os.path.join(self.workspace_dir, "projects", "zaxterlab-immersive-world")
+        self.assertTrue(os.path.isdir(init_dir))
+        for fname in expected_artifacts:
+            self.assertTrue(os.path.isfile(os.path.join(init_dir, fname)), f"Missing {fname}")
+
+        # 3. Verify /api/world/state returns typed Event-to-Visual-World adapter
+        status, world = self._http_get("/api/world/state")
+        self.assertEqual(status, 200)
+        self.assertEqual(world["theme_mode"], "LIGHT_MODE_MANDATORY")
+        self.assertIn("brain", world)
+        self.assertEqual(len(world["brain"]["supported_states"]), 11)
+        self.assertTrue(world["brain"]["spend_guard"]["locked"])
+        self.assertEqual(world["brain"]["spend_guard"]["authorized_spend_usd"], 0.0)
+
+        # 4. Verify Musab was dynamically spawned and registered alongside existing workforce
+        specialist_names = {s["name"] for s in world["specialists"]}
+        for expected_name in ["Hadi", "Sirfaraz", "Musab", "Hania", "Reem", "Aroosh", "Zaks"]:
+            self.assertIn(expected_name, specialist_names)
+
+        # 5. Verify /api/projects and /api/projects/{id}
+        status, projs_res = self._http_get("/api/projects?project_type=INTERNAL_INITIATIVE")
+        self.assertEqual(status, 200)
+        self.assertTrue(any(p["project_id"] == "proj_zaxterlab_immersive_world" for p in projs_res["projects"]))
+
+        status, proj_detail = self._http_get("/api/projects/proj_zaxterlab_immersive_world")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(proj_detail["tasks"]), 7)
+
+        # 6. Verify static serving of Studio 3D assets, SVG rigs, and light-mode design tokens
+        for asset_path, expected_mime in [
+            ("/design-tokens.css", "text/css"),
+            ("/assets/ASSET_MANIFEST.json", "application/json"),
+            ("/assets/brain-core.svg", "image/svg+xml"),
+            ("/assets/brain-entity.jpg", "image/jpeg"),
+            ("/assets/mascot-showcase.jpg", "image/jpeg"),
+        ]:
+            req = Request(f"{self.base_url}{asset_path}", method="GET")
+            with urlopen(req) as resp:
+                self.assertEqual(resp.status, 200)
+                self.assertIn(expected_mime, resp.headers.get("Content-Type", ""))
+                self.assertGreater(len(resp.read()), 100)
+
+    def test_dynamic_specialist_spawning_endpoint(self):
+        """Verify dynamic specialist spawning and runtime persistence."""
+        status, spawn_res = self._http_post(
+            "/api/specialists/spawn",
+            {
+                "name": "Tariq",
+                "role_title": "Telemetry & Reliability Specialist",
+                "department": "Operations & Governance",
+                "capabilities": ["reliability_engineering", "metrics_analysis"],
+                "justification": "Needed for specialized latency profiling.",
+                "auto_approve": True,
+                "approver": "Zak",
+            },
+        )
+        self.assertEqual(status, 201)
+        self.assertEqual(spawn_res["specialist"]["name"], "Tariq")
+        self.assertEqual(spawn_res["specialist"]["lifecycle_state"], "ACTIVE")
+
+        status, list_res = self._http_get("/api/specialists")
+        self.assertEqual(status, 200)
+        self.assertTrue(any(s["name"] == "Tariq" for s in list_res["specialists"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -45,7 +45,22 @@ class MultiWorkerOrchestrator:
         self._refresh_active_specialists()
 
     def _refresh_active_specialists(self) -> None:
-        """Load all owner-approved specialists from database."""
+        """Load all owner-approved and registered active specialists from database."""
+        registered = self.store.list_specialists(lifecycle_state="ACTIVE")
+        for reg in registered:
+            if reg.name.lower() == "reem" or not reg.eligible_for_assignment:
+                continue
+            agent = AgentDefinition(
+                agent_id=reg.worker_id,
+                name=reg.name,
+                role=reg.role,
+                description=reg.instructions or f"Registered specialist {reg.name}",
+                allowed_tools=list(reg.allowed_tools),
+                max_iterations=10,
+                permission_tier=reg.permission_tier,
+            )
+            self.active_specialists[reg.name.lower()] = agent
+
         approved_proposals = self.store.list_proposals(status=ProposalStatus.APPROVED)
         for p in approved_proposals:
             agent = AgentDefinition(
@@ -155,8 +170,31 @@ class MultiWorkerOrchestrator:
             engine = self.worker_engine
 
         # 3. Execution attempt
+        reg_spec = self.store.get_specialist_by_name(task.assigned_specialist or "Reem")
+        if reg_spec:
+            reg_spec.runtime_status = "WORKING"
+            reg_spec.current_task_id = task.task_id
+            reg_spec.updated_at = utc_now_iso()
+            self.store.save_specialist(reg_spec)
+
         session = engine.execute_task(task)
         updated_task = self.store.get_task(task.task_id) or task
+
+        if reg_spec:
+            reg_spec.current_task_id = None
+            reg_spec.tokens_used += session.total_token_usage.total_tokens if session else 0
+            if updated_task.status == TaskStatus.COMPLETED:
+                reg_spec.runtime_status = "AVAILABLE"
+                reg_spec.tasks_completed += 1
+                out_entry = f"[{updated_task.task_id}] {updated_task.title}"
+                if out_entry not in reg_spec.recent_outputs:
+                    reg_spec.recent_outputs = ([out_entry] + reg_spec.recent_outputs)[:8]
+            elif updated_task.status in (TaskStatus.BLOCKED, TaskStatus.FAILED):
+                reg_spec.runtime_status = "BLOCKED"
+            else:
+                reg_spec.runtime_status = "AVAILABLE"
+            reg_spec.updated_at = utc_now_iso()
+            self.store.save_specialist(reg_spec)
 
         # 4. Failure handling and retry logic
         if updated_task.status in (TaskStatus.FAILED, TaskStatus.REJECTED, TaskStatus.BLOCKED):

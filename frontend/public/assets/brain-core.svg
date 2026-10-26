@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <defs>
+    <radialGradient id="brainCoreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0B6BCB" stop-opacity="0.28"/>
+      <stop offset="55%" stop-color="#0E7490" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FBF9F5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="synapseGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#0B6BCB"/>
+      <stop offset="100%" stop-color="#0E7490"/>
+    </linearGradient>
+  </defs>
+  <circle cx="120" cy="120" r="108" fill="url(#brainCoreGlow)"/>
+  <circle cx="120" cy="120" r="96" stroke="#0B6BCB" stroke-opacity="0.18" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <circle cx="120" cy="120" r="82" stroke="url(#synapseGold)" stroke-opacity="0.32" stroke-width="2"/>
+  <!-- Left & Right Sculptural Cortical Lobes -->
+  <path d="M116 56C88 56 68 76 68 104C68 116 73 126 81 133C75 142 76 156 86 166C96 176 112 176 116 168" stroke="#0B6BCB" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M124 56C152 56 172 76 172 104C172 116 167 126 159 133C165 142 164 156 154 166C144 176 128 176 124 168" stroke="#0E7490" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Synaptic Bridges -->
+  <path d="M88 96C102 88 138 88 152 96" stroke="url(#synapseGold)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M84 120C104 112 136 112 156 120" stroke="url(#synapseGold)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M92 144C108 138 132 138 148 144" stroke="url(#synapseGold)" stroke-width="2" stroke-linecap="round"/>
+  <!-- Neural Nodes -->
+  <circle cx="88" cy="96" r="4.5" fill="#0B6BCB"/>
+  <circle cx="152" cy="96" r="4.5" fill="#0E7490"/>
+  <circle cx="120" cy="84" r="5.5" fill="#D97706"/>
+  <circle cx="120" cy="120" r="7" fill="#0B6BCB"/>
+  <circle cx="120" cy="152" r="5" fill="#15803D"/>
+</svg>

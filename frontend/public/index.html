@@ -3,28 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZaxterLab — AI Company Operating System</title>
+    <title>ZaxterLab — Immersive Intelligence World & AI Company OS</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Tailwind CSS (Offline-safe CDN with local fallback) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ZaxterLab Light-Mode Immersive Design System Tokens -->
+    <link rel="stylesheet" href="./design-tokens.css" />
     <style>
       :root {
-        --bg-page: #f4f6fa;
-        --bg-sidebar: #0b1326;
-        --bg-sidebar-active: #17233d;
-        --bg-card: #ffffff;
-        --bg-dark-card: #0d1629;
-        --border-subtle: #e2e8f0;
-        --border-sidebar: #172442;
-        --accent-lime: #b4f53c;
-        --accent-lime-hover: #a1e828;
-        --accent-lime-text: #0b1326;
-        --text-primary: #0f172a;
-        --text-secondary: #64748b;
-        --text-sidebar: #94a3b8;
+        --bg-page: #FBF9F5;
+        --bg-sidebar: #F4F1EA;
+        --bg-sidebar-active: #FFFFFF;
+        --bg-card: #FFFFFF;
+        --border-subtle: #E6E1D6;
+        --border-sidebar: #DFD9CC;
+        --accent-blue: #0B6BCB;
+        --accent-emerald: #15803D;
+        --text-primary: #141923;
+        --text-secondary: #3E4C59;
       }
       * {
         box-sizing: border-box;
@@ -47,18 +46,18 @@
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(241, 245, 249, 0.8);
+        background: rgba(244, 241, 234, 0.8);
       }
       ::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
+        background: #CBC4B5;
         border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
+        background: #9E9686;
       }
     </style>
   </head>
-  <body class="bg-[#f4f6fa] text-slate-900 antialiased overflow-hidden selection:bg-lime-400 selection:text-slate-950">
+  <body class="bg-[#FBF9F5] text-[#141923] antialiased overflow-hidden selection:bg-sky-200 selection:text-slate-950">
     <div id="root"></div>
 
     <!-- Application Script Entry -->

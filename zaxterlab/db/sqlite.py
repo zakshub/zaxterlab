@@ -8,8 +8,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 from zaxterlab.contracts.types import (
+    CompanyProject,
     PermissionTier,
     ProposalStatus,
+    RegisteredSpecialist,
     Session,
     SessionStatus,
     SpawningProposal,
@@ -109,6 +111,56 @@ class SQLiteStore:
                     decision_reason TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS specialists (
+                    worker_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    archetype TEXT NOT NULL,
+                    department TEXT NOT NULL,
+                    capabilities_json TEXT NOT NULL DEFAULT '[]',
+                    capability_gap_filled TEXT NOT NULL DEFAULT '',
+                    instructions TEXT NOT NULL DEFAULT '',
+                    operating_boundaries TEXT NOT NULL DEFAULT '',
+                    allowed_tools_json TEXT NOT NULL DEFAULT '[]',
+                    permission_tier TEXT NOT NULL,
+                    eligible_for_assignment INTEGER NOT NULL DEFAULT 1,
+                    is_temporary INTEGER NOT NULL DEFAULT 0,
+                    reusable INTEGER NOT NULL DEFAULT 1,
+                    lifecycle_state TEXT NOT NULL DEFAULT 'ACTIVE',
+                    runtime_status TEXT NOT NULL DEFAULT 'AVAILABLE',
+                    current_task_id TEXT,
+                    tasks_completed INTEGER NOT NULL DEFAULT 0,
+                    tokens_used INTEGER NOT NULL DEFAULT 0,
+                    recent_outputs_json TEXT NOT NULL DEFAULT '[]',
+                    proposal_id TEXT,
+                    deactivation_rule TEXT NOT NULL DEFAULT '',
+                    mascot_profile_json TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS projects (
+                    project_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    slug TEXT NOT NULL,
+                    project_type TEXT NOT NULL,
+                    priority TEXT NOT NULL,
+                    objective TEXT NOT NULL,
+                    domain TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_stage TEXT NOT NULL,
+                    lead_specialist TEXT NOT NULL,
+                    workspace_path TEXT NOT NULL,
+                    epics_json TEXT NOT NULL DEFAULT '[]',
+                    capability_assessment_json TEXT NOT NULL DEFAULT '{}',
+                    acceptance_criteria_json TEXT NOT NULL DEFAULT '[]',
+                    artifacts_json TEXT NOT NULL DEFAULT '[]',
+                    approvals_json TEXT NOT NULL DEFAULT '[]',
+                    spend_usd REAL NOT NULL DEFAULT 0.0,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
                 CREATE INDEX IF NOT EXISTS idx_sessions_task ON sessions(task_id);
                 CREATE INDEX IF NOT EXISTS idx_step_traces_session ON step_traces(session_id);
@@ -128,6 +180,26 @@ class SQLiteStore:
                 self._conn.execute("ALTER TABLE tasks ADD COLUMN assigned_specialist TEXT")
             if "error_message" not in cols:
                 self._conn.execute("ALTER TABLE tasks ADD COLUMN error_message TEXT")
+            if "project_id" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN project_id TEXT")
+            if "epic_id" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN epic_id TEXT")
+            if "epic_title" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN epic_title TEXT")
+            if "feature_id" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN feature_id TEXT")
+            if "feature_title" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN feature_title TEXT")
+            if "department" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN department TEXT")
+            if "priority" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'NORMAL'")
+            if "acceptance_criteria_json" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN acceptance_criteria_json TEXT DEFAULT '[]'")
+            if "artifact_paths_json" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN artifact_paths_json TEXT DEFAULT '[]'")
+            if "verification_evidence" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN verification_evidence TEXT")
 
     def close(self) -> None:
         """Close database connection."""
@@ -146,8 +218,12 @@ class SQLiteStore:
                     input_context_json, depends_on_json,
                     retry_count, max_retries,
                     result_summary, error_message,
+                    project_id, epic_id, epic_title,
+                    feature_id, feature_title, department,
+                    priority, acceptance_criteria_json,
+                    artifact_paths_json, verification_evidence,
                     created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(task_id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
@@ -160,6 +236,16 @@ class SQLiteStore:
                     max_retries = excluded.max_retries,
                     result_summary = excluded.result_summary,
                     error_message = excluded.error_message,
+                    project_id = excluded.project_id,
+                    epic_id = excluded.epic_id,
+                    epic_title = excluded.epic_title,
+                    feature_id = excluded.feature_id,
+                    feature_title = excluded.feature_title,
+                    department = excluded.department,
+                    priority = excluded.priority,
+                    acceptance_criteria_json = excluded.acceptance_criteria_json,
+                    artifact_paths_json = excluded.artifact_paths_json,
+                    verification_evidence = excluded.verification_evidence,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -175,6 +261,16 @@ class SQLiteStore:
                     task.max_retries,
                     task.result_summary,
                     task.error_message,
+                    task.project_id,
+                    task.epic_id,
+                    task.epic_title,
+                    task.feature_id,
+                    task.feature_title,
+                    task.department,
+                    task.priority,
+                    json.dumps(task.acceptance_criteria),
+                    json.dumps(task.artifact_paths),
+                    task.verification_evidence,
                     task.created_at,
                     task.updated_at,
                 ),
@@ -191,12 +287,22 @@ class SQLiteStore:
             return None
         return self._row_to_task(row)
 
-    def list_tasks(self, status: Optional[TaskStatus] = None) -> list[Task]:
-        """List all tasks, optionally filtered by status."""
-        if status:
+    def list_tasks(self, status: Optional[TaskStatus] = None, project_id: Optional[str] = None) -> list[Task]:
+        """List all tasks, optionally filtered by status or project_id."""
+        if status and project_id:
+            cursor = self._conn.execute(
+                "SELECT * FROM tasks WHERE status = ? AND project_id = ? ORDER BY created_at ASC",
+                (status.value, project_id),
+            )
+        elif status:
             cursor = self._conn.execute(
                 "SELECT * FROM tasks WHERE status = ? ORDER BY created_at ASC",
                 (status.value,),
+            )
+        elif project_id:
+            cursor = self._conn.execute(
+                "SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at ASC",
+                (project_id,),
             )
         else:
             cursor = self._conn.execute(
@@ -212,6 +318,24 @@ class SQLiteStore:
         max_retries = int(row["max_retries"]) if "max_retries" in cols and row["max_retries"] is not None else 2
         assigned_specialist = row["assigned_specialist"] if "assigned_specialist" in cols else None
         error_message = row["error_message"] if "error_message" in cols else None
+        project_id = row["project_id"] if "project_id" in cols else None
+        epic_id = row["epic_id"] if "epic_id" in cols else None
+        epic_title = row["epic_title"] if "epic_title" in cols else None
+        feature_id = row["feature_id"] if "feature_id" in cols else None
+        feature_title = row["feature_title"] if "feature_title" in cols else None
+        department = row["department"] if "department" in cols else None
+        priority = row["priority"] if "priority" in cols and row["priority"] else "NORMAL"
+        acceptance_criteria = (
+            json.loads(row["acceptance_criteria_json"])
+            if "acceptance_criteria_json" in cols and row["acceptance_criteria_json"]
+            else []
+        )
+        artifact_paths = (
+            json.loads(row["artifact_paths_json"])
+            if "artifact_paths_json" in cols and row["artifact_paths_json"]
+            else []
+        )
+        verification_evidence = row["verification_evidence"] if "verification_evidence" in cols else None
 
         return Task(
             task_id=row["task_id"],
@@ -226,6 +350,16 @@ class SQLiteStore:
             max_retries=max_retries,
             result_summary=row["result_summary"],
             error_message=error_message,
+            project_id=project_id,
+            epic_id=epic_id,
+            epic_title=epic_title,
+            feature_id=feature_id,
+            feature_title=feature_title,
+            department=department,
+            priority=priority,
+            acceptance_criteria=acceptance_criteria,
+            artifact_paths=artifact_paths,
+            verification_evidence=verification_evidence,
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
@@ -466,3 +600,243 @@ class SQLiteStore:
             decided_at=row["decided_at"],
             decision_reason=row["decision_reason"],
         )
+
+    # --- Registered Specialist Workforce Operations ---
+
+    def save_specialist(self, specialist: RegisteredSpecialist) -> None:
+        """Insert or update a registered specialist in the runtime database."""
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO specialists (
+                    worker_id, name, role, archetype, department,
+                    capabilities_json, capability_gap_filled,
+                    instructions, operating_boundaries, allowed_tools_json,
+                    permission_tier, eligible_for_assignment, is_temporary, reusable,
+                    lifecycle_state, runtime_status, current_task_id,
+                    tasks_completed, tokens_used, recent_outputs_json,
+                    proposal_id, deactivation_rule, mascot_profile_json,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(worker_id) DO UPDATE SET
+                    name = excluded.name,
+                    role = excluded.role,
+                    archetype = excluded.archetype,
+                    department = excluded.department,
+                    capabilities_json = excluded.capabilities_json,
+                    capability_gap_filled = excluded.capability_gap_filled,
+                    instructions = excluded.instructions,
+                    operating_boundaries = excluded.operating_boundaries,
+                    allowed_tools_json = excluded.allowed_tools_json,
+                    permission_tier = excluded.permission_tier,
+                    eligible_for_assignment = excluded.eligible_for_assignment,
+                    is_temporary = excluded.is_temporary,
+                    reusable = excluded.reusable,
+                    lifecycle_state = excluded.lifecycle_state,
+                    runtime_status = excluded.runtime_status,
+                    current_task_id = excluded.current_task_id,
+                    tasks_completed = excluded.tasks_completed,
+                    tokens_used = excluded.tokens_used,
+                    recent_outputs_json = excluded.recent_outputs_json,
+                    proposal_id = excluded.proposal_id,
+                    deactivation_rule = excluded.deactivation_rule,
+                    mascot_profile_json = excluded.mascot_profile_json,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    specialist.worker_id,
+                    specialist.name,
+                    specialist.role,
+                    specialist.archetype,
+                    specialist.department,
+                    json.dumps(specialist.capabilities),
+                    specialist.capability_gap_filled,
+                    specialist.instructions,
+                    specialist.operating_boundaries,
+                    json.dumps(specialist.allowed_tools),
+                    specialist.permission_tier.value,
+                    1 if specialist.eligible_for_assignment else 0,
+                    1 if specialist.is_temporary else 0,
+                    1 if specialist.reusable else 0,
+                    specialist.lifecycle_state,
+                    specialist.runtime_status,
+                    specialist.current_task_id,
+                    specialist.tasks_completed,
+                    specialist.tokens_used,
+                    json.dumps(specialist.recent_outputs),
+                    specialist.proposal_id,
+                    specialist.deactivation_rule,
+                    json.dumps(specialist.mascot_profile),
+                    specialist.created_at,
+                    specialist.updated_at,
+                ),
+            )
+
+    def get_specialist(self, worker_id: str) -> Optional[RegisteredSpecialist]:
+        """Fetch registered specialist by worker_id."""
+        cursor = self._conn.execute(
+            "SELECT * FROM specialists WHERE worker_id = ?",
+            (worker_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_specialist(row)
+
+    def get_specialist_by_name(self, name: str) -> Optional[RegisteredSpecialist]:
+        """Fetch registered specialist by case-insensitive name."""
+        cursor = self._conn.execute(
+            "SELECT * FROM specialists WHERE LOWER(name) = LOWER(?)",
+            (name,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_specialist(row)
+
+    def list_specialists(self, lifecycle_state: Optional[str] = None) -> list[RegisteredSpecialist]:
+        """List all registered specialists."""
+        if lifecycle_state:
+            cursor = self._conn.execute(
+                "SELECT * FROM specialists WHERE lifecycle_state = ? ORDER BY created_at ASC",
+                (lifecycle_state,),
+            )
+        else:
+            cursor = self._conn.execute(
+                "SELECT * FROM specialists ORDER BY created_at ASC"
+            )
+        return [self._row_to_specialist(row) for row in cursor.fetchall()]
+
+    def _row_to_specialist(self, row: sqlite3.Row) -> RegisteredSpecialist:
+        return RegisteredSpecialist(
+            worker_id=row["worker_id"],
+            name=row["name"],
+            role=row["role"],
+            archetype=row["archetype"],
+            department=row["department"],
+            capabilities=json.loads(row["capabilities_json"] or "[]"),
+            capability_gap_filled=row["capability_gap_filled"],
+            instructions=row["instructions"],
+            operating_boundaries=row["operating_boundaries"],
+            allowed_tools=json.loads(row["allowed_tools_json"] or "[]"),
+            permission_tier=PermissionTier(row["permission_tier"]),
+            eligible_for_assignment=bool(row["eligible_for_assignment"]),
+            is_temporary=bool(row["is_temporary"]),
+            reusable=bool(row["reusable"]),
+            lifecycle_state=row["lifecycle_state"],
+            runtime_status=row["runtime_status"],
+            current_task_id=row["current_task_id"],
+            tasks_completed=int(row["tasks_completed"]),
+            tokens_used=int(row["tokens_used"]),
+            recent_outputs=json.loads(row["recent_outputs_json"] or "[]"),
+            proposal_id=row["proposal_id"],
+            deactivation_rule=row["deactivation_rule"],
+            mascot_profile=json.loads(row["mascot_profile_json"] or "{}"),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    # --- Company Project Operations ---
+
+    def save_project(self, project: CompanyProject) -> None:
+        """Insert or update a persistent company project record."""
+        with self._conn:
+            self._conn.execute(
+                """
+                INSERT INTO projects (
+                    project_id, name, slug, project_type, priority,
+                    objective, domain, status, current_stage,
+                    lead_specialist, workspace_path, epics_json,
+                    capability_assessment_json, acceptance_criteria_json,
+                    artifacts_json, approvals_json, spend_usd,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(project_id) DO UPDATE SET
+                    name = excluded.name,
+                    slug = excluded.slug,
+                    project_type = excluded.project_type,
+                    priority = excluded.priority,
+                    objective = excluded.objective,
+                    domain = excluded.domain,
+                    status = excluded.status,
+                    current_stage = excluded.current_stage,
+                    lead_specialist = excluded.lead_specialist,
+                    workspace_path = excluded.workspace_path,
+                    epics_json = excluded.epics_json,
+                    capability_assessment_json = excluded.capability_assessment_json,
+                    acceptance_criteria_json = excluded.acceptance_criteria_json,
+                    artifacts_json = excluded.artifacts_json,
+                    approvals_json = excluded.approvals_json,
+                    spend_usd = excluded.spend_usd,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    project.project_id,
+                    project.name,
+                    project.slug,
+                    project.project_type,
+                    project.priority,
+                    project.objective,
+                    project.domain,
+                    project.status,
+                    project.current_stage,
+                    project.lead_specialist,
+                    project.workspace_path,
+                    json.dumps(project.epics),
+                    json.dumps(project.capability_assessment),
+                    json.dumps(project.acceptance_criteria),
+                    json.dumps(project.artifacts),
+                    json.dumps(project.approvals),
+                    project.spend_usd,
+                    project.created_at,
+                    project.updated_at,
+                ),
+            )
+
+    def get_project(self, project_id: str) -> Optional[CompanyProject]:
+        """Fetch project by ID."""
+        cursor = self._conn.execute(
+            "SELECT * FROM projects WHERE project_id = ?",
+            (project_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_project(row)
+
+    def list_projects(self, project_type: Optional[str] = None) -> list[CompanyProject]:
+        """List persistent projects."""
+        if project_type:
+            cursor = self._conn.execute(
+                "SELECT * FROM projects WHERE project_type = ? ORDER BY created_at DESC",
+                (project_type,),
+            )
+        else:
+            cursor = self._conn.execute(
+                "SELECT * FROM projects ORDER BY created_at DESC"
+            )
+        return [self._row_to_project(row) for row in cursor.fetchall()]
+
+    def _row_to_project(self, row: sqlite3.Row) -> CompanyProject:
+        return CompanyProject(
+            project_id=row["project_id"],
+            name=row["name"],
+            slug=row["slug"],
+            project_type=row["project_type"],
+            priority=row["priority"],
+            objective=row["objective"],
+            domain=row["domain"],
+            status=row["status"],
+            current_stage=row["current_stage"],
+            lead_specialist=row["lead_specialist"],
+            workspace_path=row["workspace_path"],
+            epics=json.loads(row["epics_json"] or "[]"),
+            capability_assessment=json.loads(row["capability_assessment_json"] or "{}"),
+            acceptance_criteria=json.loads(row["acceptance_criteria_json"] or "[]"),
+            artifacts=json.loads(row["artifacts_json"] or "[]"),
+            approvals=json.loads(row["approvals_json"] or "[]"),
+            spend_usd=float(row["spend_usd"]),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
