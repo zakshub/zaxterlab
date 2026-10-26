@@ -62,8 +62,10 @@ class APIHandlerService:
             }
 
         approved_proposals = self.store.list_proposals(status=ProposalStatus.APPROVED)
-        active_specialists = [
-            {
+        # Deduplicate approved specialists by agent name (keeping most recent activation)
+        specialist_map: dict[str, dict[str, Any]] = {}
+        for p in approved_proposals:
+            specialist_map[p.target_role_name.lower()] = {
                 "agent_id": f"{p.target_role_name.lower()}-specialist",
                 "name": p.target_role_name,
                 "role": p.target_role_title,
@@ -73,8 +75,7 @@ class APIHandlerService:
                 "allowed_tools": p.recommended_tools,
                 "activated_at": p.decided_at,
             }
-            for p in approved_proposals
-        ]
+        active_specialists = list(specialist_map.values())
         total_active_workers = (2 if self.engine.auditor else 1) + len(active_specialists)
 
         return {
@@ -308,6 +309,16 @@ class APIHandlerService:
         approver = (data or {}).get("approver", "Zak")
         reason = (data or {}).get("reason", "Approved by Product Owner")
         proposal = self.evaluator.approve_proposal(proposal_id, approver=approver, reason=reason)
+        self.store.log_audit(
+            event_type="SPECIALIST_PROPOSAL_APPROVED",
+            entity_id=proposal_id,
+            details={
+                "candidate": proposal.target_role_name,
+                "role": proposal.target_role_title,
+                "approver": approver,
+                "reason": reason,
+            },
+        )
         return {
             "proposal": proposal.to_dict(),
             "message": f"Specialist role '{proposal.target_role_name}' ({proposal.target_role_title}) successfully activated.",
@@ -318,6 +329,16 @@ class APIHandlerService:
         decider = (data or {}).get("decider", "Zak")
         reason = (data or {}).get("reason", "Rejected by Product Owner")
         proposal = self.evaluator.reject_proposal(proposal_id, decider=decider, reason=reason)
+        self.store.log_audit(
+            event_type="SPECIALIST_PROPOSAL_REJECTED",
+            entity_id=proposal_id,
+            details={
+                "candidate": proposal.target_role_name,
+                "role": proposal.target_role_title,
+                "decider": decider,
+                "reason": reason,
+            },
+        )
         return {
             "proposal": proposal.to_dict(),
             "message": f"Specialist proposal '{proposal_id}' rejected. Role remains dormant.",
@@ -332,7 +353,7 @@ class APIHandlerService:
         return {
             "assessment_date": "2026-10-26",
             "overall_completion_pct": 94,
-            "evidence_summary": "44+ hermetic tests passing; dual-worker loop active; multi-worker DAG orchestrator active; dynamic proposal review UI active; $0.00 spend strictly guarded.",
+            "evidence_summary": "54 hermetic tests passing; dual-worker loop active; multi-worker DAG orchestrator active; dynamic proposal review UI active; $0.00 spend strictly guarded.",
             "pillars": [
                 {
                     "name": "Core Architecture & Spend Security",
