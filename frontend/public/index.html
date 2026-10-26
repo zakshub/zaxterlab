@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZaxterLab — AI Company Operating System</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (Offline-safe CDN with local fallback) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg-deep: #050811;
+        --bg-panel: #0a101d;
+        --bg-card: #0f182c;
+        --border-subtle: #172238;
+        --accent-cyan: #00f0ff;
+        --accent-blue: #00d2ff;
+        --accent-violet: #8b5cf6;
+        --accent-amber: #f59e0b;
+        --accent-emerald: #10b981;
+        --accent-rose: #ef4444;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg-deep);
+        color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        height: 100vh;
+        width: 100vw;
+      }
+      code, pre, .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(10, 16, 29, 0.6);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1c2a47;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #00d2ff;
+      }
+    </style>
+  </head>
+  <body class="bg-[#050811] text-slate-100 antialiased overflow-hidden selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div id="root"></div>
+
+    <!-- Application Script Entry -->
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
