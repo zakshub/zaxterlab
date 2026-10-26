@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZaxterLab — Interactive DAG Studio (Form 4: Node/Canvas)</title>
+  <link rel="stylesheet" href="./studio.css" />
+</head>
+<body class="studio-dark">
+  <div id="studio-root">
+    <!-- Top Studio Toolbar -->
+    <header id="studio-header">
+      <div class="studio-brand">
+        <div class="studio-logo">&#10070;</div>
+        <div>
+          <span class="studio-title">ZAXTERLAB DAG STUDIO</span>
+          <span class="studio-badge">Form 4: Interactive Node Canvas</span>
+        </div>
+      </div>
+
+      <div class="studio-controls">
+        <button id="btn-run-dag" class="btn btn-primary" title="Execute all tasks topologically">
+          <span>&#9658;</span> Run DAG Graph
+        </button>
+        <button id="btn-pipeline-2stage" class="btn btn-secondary" title="Run 2-Stage Reem -> Aroosh Pipeline">
+          <span>&#9881;</span> 2-Stage Pipeline
+        </button>
+        <button id="btn-template-saas" class="btn btn-secondary" title="Load 5-Department SaaS Venture Template">
+          <span>&#10022;</span> 5-Dept SaaS Template
+        </button>
+        <button id="btn-add-node" class="btn btn-secondary">
+          <span>+</span> Add Node
+        </button>
+        <button id="btn-auto-layout" class="btn btn-secondary" title="Auto-arrange nodes by dependency layers">
+          <span>&#9783;</span> Auto-Layout
+        </button>
+      </div>
+
+      <div class="studio-zoom-bar">
+        <button id="btn-zoom-in" class="btn-icon" title="Zoom In">+</button>
+        <span id="zoom-label" class="zoom-text">100%</span>
+        <button id="btn-zoom-out" class="btn-icon" title="Zoom Out">&minus;</button>
+        <button id="btn-zoom-reset" class="btn-icon" title="Reset View">&#8962;</button>
+        <button id="btn-refresh" class="btn-icon" title="Refresh state">&#8635;</button>
+      </div>
+
+      <div class="studio-telemetry">
+        <span class="telemetry-pill success" id="studio-spend">Spend: $0.00 (LOCKED)</span>
+        <div class="dropdown">
+          <button class="btn btn-sm btn-secondary">Forms &#9662;</button>
+          <div class="dropdown-menu">
+            <a href="/">1. Zero-UI Workbench</a>
+            <a href="/basic.html">2. Basic Desktop GUI</a>
+            <a href="/saas.html">3. SaaS Operations App</a>
+            <a href="/studio.html" class="active">4. Interactive DAG Studio (Active)</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Canvas Workspace Area -->
+    <div id="canvas-viewport">
+      <!-- Background Grid & Transform Stage -->
+      <div id="canvas-stage">
+        <!-- SVG Connections Layer -->
+        <svg id="svg-connections" class="connections-layer">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+            </marker>
+            <marker id="arrow-active" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+            </marker>
+          </defs>
+          <g id="connections-group"></g>
+        </svg>
+
+        <!-- Dynamic Draggable Node Cards Container -->
+        <div id="nodes-container"></div>
+      </div>
+
+      <!-- Canvas Floating Legend & Status -->
+      <div class="canvas-legend">
+        <div class="legend-item"><span class="legend-dot green"></span> Completed</div>
+        <div class="legend-item"><span class="legend-dot yellow"></span> Running</div>
+        <div class="legend-item"><span class="legend-dot blue"></span> Queued</div>
+        <div class="legend-item"><span class="legend-dot red"></span> Blocked/Failed</div>
+      </div>
+    </div>
+
+    <!-- Right Node Inspector Drawer -->
+    <aside id="node-inspector" class="inspector-panel hidden">
+      <div class="inspector-header">
+        <div class="inspector-title">
+          <span class="badge" id="insp-badge">TASK NODE</span>
+          <h3 id="insp-title">Node Properties</h3>
+        </div>
+        <button id="btn-close-inspector" class="btn-icon">&times;</button>
+      </div>
+
+      <div class="inspector-body">
+        <div class="property-group">
+          <label>TASK ID</label>
+          <code id="insp-id">-</code>
+        </div>
+        <div class="property-group">
+          <label>ASSIGNED SPECIALIST</label>
+          <div id="insp-specialist" class="property-val highlight">-</div>
+        </div>
+        <div class="property-group">
+          <label>STATUS</label>
+          <div id="insp-status" class="property-val">-</div>
+        </div>
+        <div class="property-group">
+          <label>DEPENDS ON (INPUT PREREQUISITES)</label>
+          <div id="insp-deps" class="deps-chips-list">-</div>
+        </div>
+        <div class="property-group">
+          <label>DESCRIPTION &amp; SCOPE</label>
+          <div id="insp-desc" class="desc-box">-</div>
+        </div>
+
+        <div class="inspector-actions">
+          <button id="btn-exec-selected-node" class="btn btn-primary btn-block">
+            <span>&#9658;</span> Execute This Task Node
+          </button>
+          <button id="btn-add-downstream" class="btn btn-secondary btn-block">
+            <span>+</span> Add Dependent Downstream Task
+          </button>
+        </div>
+
+        <div class="property-group" style="margin-top:16px;">
+          <label>EXECUTION SESSIONS &amp; STEP TRACES</label>
+          <div id="insp-sessions" class="sessions-container">
+            <div class="empty-state">No execution trace recorded.</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Modal: Add New Task Node -->
+    <div id="modal-add-node" class="modal-backdrop hidden">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Create DAG Task Node</h3>
+          <button class="btn-icon btn-close-modal" data-modal="modal-add-node">&times;</button>
+        </div>
+        <form id="form-new-node">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="node-title">Task Title *</label>
+              <input type="text" id="node-title" required placeholder="e.g. Implement Kafka Event Streamer" />
+            </div>
+            <div class="form-group">
+              <label for="node-spec">Assigned Specialist *</label>
+              <select id="node-spec" required></select>
+            </div>
+            <div class="form-group">
+              <label for="node-desc">Task Description</label>
+              <textarea id="node-desc" rows="3" placeholder="Detailed engineering instructions for worker..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="node-deps">Prerequisite Nodes (Select Dependencies)</label>
+              <select id="node-deps-select" multiple size="4"></select>
+              <span class="help-text">Hold Ctrl / Cmd to select multiple prerequisite tasks.</span>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-close-modal" data-modal="modal-add-node">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Node to Graph</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="studio-toast-container" class="toast-container"></div>
+  </div>
+
+  <script type="module" src="./studio.js"></script>
+</body>
+</html>
