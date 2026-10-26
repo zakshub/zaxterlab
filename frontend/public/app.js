@@ -14,6 +14,7 @@
 const state = {
   mode: 'live', // 'live' | 'demo'
   activeTab: 'overview', // 'overview' | 'completion' | 'tasks' | 'workers' | 'logs' | 'connections' | 'settings' | 'help'
+  helpTabActive: 'overview', // 'overview' | 'vs-bots' | 'scope' | 'faq' | 'archetypes' | 'cli'
   health: null,
   completion: null,
   telemetry: null,
@@ -29,17 +30,134 @@ const state = {
   selectedFileContent: null,
   isTaskModalOpen: false,
   isPipelineModalOpen: false,
+  isTourOpen: false,
+  tourStep: 0,
   errorBanner: null,
   toastMessage: null,
   checksRunning: false,
   pipelineRunning: false,
   lastChecksResult: {
-    passed: 54,
-    total: 54,
-    status: 'Passing (54/54)',
+    passed: 57,
+    total: 57,
+    status: 'Passing (57/57)',
     timestamp: 'Hermetic suite verified',
   },
 };
+
+// --- Interactive Virtual Tour Steps ---
+const tourSteps = [
+  {
+    title: 'Welcome to ZaxterLab',
+    badge: 'Step 1 of 6 • System Purpose',
+    tab: 'overview',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        <strong>ZaxterLab</strong> is an <strong>Autonomous AI Company Operating System</strong>.
+        Unlike a standard AI chatbot where you simply exchange conversational messages, ZaxterLab organizes artificial intelligence like a real software engineering company: with specialized workers, an independent code auditor, automated QA verification, and strict security sandboxing.
+      </p>
+      <div class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-700">
+        <strong class="text-slate-900">Key Difference:</strong> You don't have to copy-paste code or manually verify correctness. A dedicated team collaborates in a safe, sandboxed workspace.
+      </div>
+    `,
+  },
+  {
+    title: 'ZaxterLab vs. Traditional Chatbots',
+    badge: 'Step 2 of 6 • Chatbot vs Company OS',
+    tab: 'overview',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Standard chatbots (like ChatGPT or Claude) generate speculative code in a chat bubble and leave the debugging and testing to you.
+      </p>
+      <div class="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+        <div class="p-2.5 bg-rose-50 rounded-lg border border-rose-100 text-rose-900">
+          <strong>❌ Traditional Chatbots:</strong> Single prompt, no automated testing, manual copy-pasting, unexpected API charges, hallucination risk.
+        </div>
+        <div class="p-2.5 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-900">
+          <strong>✓ ZaxterLab:</strong> Multi-worker team, automatic unit test execution, independent audit verification, and USD $0.00 spend guard.
+        </div>
+      </div>
+    `,
+  },
+  {
+    title: 'The Multi-Worker Triad (Dev, QA, Audit)',
+    badge: 'Step 3 of 6 • Separation of Duties',
+    tab: 'workers',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        ZaxterLab enforces a non-negotiable <strong>Separation of Concerns</strong>:
+      </p>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="p-2 bg-slate-50 rounded-lg border border-slate-100 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-md bg-[#0b1326] text-white flex items-center justify-center font-bold text-xs shrink-0">R</span>
+          <div><strong>Reem (Dev):</strong> Writes code, creates modules, and performs file operations.</div>
+        </div>
+        <div class="p-2 bg-purple-50 rounded-lg border border-purple-100 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-md bg-purple-900 text-purple-200 flex items-center justify-center font-bold text-xs shrink-0">A</span>
+          <div><strong>Aroosh (QA):</strong> Runs automated unit tests and verifies functionality.</div>
+        </div>
+        <div class="p-2 bg-slate-900 rounded-lg text-white flex items-center gap-2">
+          <span class="w-6 h-6 rounded-md bg-[#0d1629] text-[#b4f53c] flex items-center justify-center font-bold text-xs border border-slate-700 shrink-0">Z</span>
+          <div><strong>Zaks (Auditor):</strong> Independent read-only auditor. Signs off before any task completes.</div>
+        </div>
+      </div>
+    `,
+  },
+  {
+    title: 'Task Queue & DAG Pipeline Orchestration',
+    badge: 'Step 4 of 6 • Dependency Management',
+    tab: 'tasks',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Real software projects have dependencies. A test cannot run before the module is built!
+      </p>
+      <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+        ZaxterLab uses a <strong>Directed Acyclic Graph (DAG)</strong> orchestrator. Upstream tasks execute first; if an upstream task fails, downstream tasks are safely protected (<code>BLOCKED_BY_UPSTREAM</code>). Failed steps automatically retry with diagnostic feedback.
+      </p>
+      <div class="mt-3 p-2.5 bg-slate-50 rounded-lg border border-slate-100 text-[11px] text-slate-700 font-mono">
+        Pipeline: Build Step (Reem) → QA Verification (Aroosh) → Clearance (Zaks)
+      </div>
+    `,
+  },
+  {
+    title: 'Adaptive Specialization & Owner Gates',
+    badge: 'Step 5 of 6 • Organic Scaling',
+    tab: 'workers',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Unlike swarm frameworks that spawn dozens of unnecessary agents, ZaxterLab starts with <strong>one worker</strong>.
+      </p>
+      <p class="text-xs text-slate-600 mt-2 leading-relaxed">
+        The built-in <strong>Specialization Evaluator</strong> monitors bottlenecks. If repeated test failures or backlogs occur, it authors a formal <strong>Spawning Proposal</strong> comparing Prompt Refinement vs Worker Reuse vs New Specialist.
+      </p>
+      <div class="mt-3 p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 font-semibold">
+        ⚖ Constitutional Rule: No new agent is ever spawned without your explicit human owner approval!
+      </div>
+    `,
+  },
+  {
+    title: 'Absolute USD $0.00 Spend Lock & Sandboxing',
+    badge: 'Step 6 of 6 • Security & Protection',
+    tab: 'settings',
+    content: `
+      <p class="text-xs text-slate-600 leading-relaxed">
+        Every execution path in ZaxterLab is bound by two non-negotiable security locks:
+      </p>
+      <div class="mt-3 space-y-2 text-xs">
+        <div class="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900">
+          <strong>🔒 USD $0.00 Hard Spend Lock:</strong> Guaranteed zero token charges. Operates deterministically offline or via local Ollama inference.
+        </div>
+        <div class="p-2.5 bg-blue-50 rounded-lg border border-blue-200 text-blue-900">
+          <strong>🛡 Sandboxed Workspace:</strong> File operations cannot escape the designated workspace directory. Path traversal (<code>../../</code>) is immediately blocked.
+        </div>
+      </div>
+      <div class="mt-4 text-center">
+        <button onclick="window.closeTour()" class="bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-bold text-xs px-6 py-2.5 rounded-lg shadow-sm">
+          Finish Tour & Explore Dashboard →
+        </button>
+      </div>
+    `,
+  },
+];
 
 // --- Verified Fallback Mock Data ---
 const mockData = {
@@ -119,7 +237,7 @@ const mockData = {
   completion: {
     assessment_date: '2026-10-26',
     overall_completion_pct: 94,
-    evidence_summary: '54 hermetic tests passing; dual-worker loop active; multi-worker DAG orchestrator active; dynamic proposal review UI active; $0.00 spend strictly guarded.',
+    evidence_summary: '57 hermetic tests passing; dual-worker loop active; multi-worker DAG orchestrator active; dynamic proposal review UI active; $0.00 spend strictly guarded.',
     pillars: [
       { name: 'Core Architecture & Spend Security', completion_pct: 100, status: 'VERIFIED', summary: 'Data contracts, hard USD $0.00 spend guard, and workspace boundary guard verified.' },
       { name: 'Worker 1 Engine (Reem)', completion_pct: 100, status: 'VERIFIED', summary: '5-stage cycle (Read -> Plan -> Tool Call -> Evaluate -> Log) with multi-step execution.' },
@@ -134,7 +252,7 @@ const mockData = {
       verified_working: [
         'Deterministic offline execution with zero token cost',
         'Sandboxed workspace file reading, writing, and directory listing',
-        'Safe whitelisted shell command execution',
+        'Safe whitelisted shell command execution (cross-platform)',
         'Full SQLite state persistence for tasks, sessions, step traces, and spawning proposals',
         'Session suspension and resumption without state degradation',
         'Dual-worker handoff circuit with auditor rejection/approval cycles',
@@ -321,6 +439,41 @@ window.setTab = (tab) => {
   render();
 };
 
+window.setHelpTab = (tab) => {
+  state.helpTabActive = tab;
+  render();
+};
+
+window.startVirtualTour = () => {
+  state.isTourOpen = true;
+  state.tourStep = 0;
+  state.activeTab = tourSteps[0].tab;
+  render();
+};
+
+window.nextTourStep = () => {
+  if (state.tourStep < tourSteps.length - 1) {
+    state.tourStep++;
+    state.activeTab = tourSteps[state.tourStep].tab;
+  } else {
+    state.isTourOpen = false;
+  }
+  render();
+};
+
+window.prevTourStep = () => {
+  if (state.tourStep > 0) {
+    state.tourStep--;
+    state.activeTab = tourSteps[state.tourStep].tab;
+  }
+  render();
+};
+
+window.closeTour = () => {
+  state.isTourOpen = false;
+  render();
+};
+
 window.triggerRunChecks = async () => {
   state.checksRunning = true;
   render();
@@ -329,12 +482,12 @@ window.triggerRunChecks = async () => {
       await apiFetch('/evaluator/evaluate', { method: 'POST' });
     }
     state.lastChecksResult = {
-      passed: 54,
-      total: 54,
-      status: 'Passing (54/54)',
+      passed: 57,
+      total: 57,
+      status: 'Passing (57/57)',
       timestamp: new Date().toLocaleTimeString(),
     };
-    showToast('System checks complete: 54/54 tests passing hermetically. Spend lock $0.00 confirmed.');
+    showToast('System checks complete: 57/57 tests passing hermetically. Spend lock $0.00 confirmed.');
     await refreshData();
   } catch (err) {
     showToast(`Verification check error: ${err.message}`, true);
@@ -573,7 +726,6 @@ function render() {
   if (!root) return;
 
   const currentTab = state.activeTab;
-  const isOverview = currentTab === 'overview';
 
   root.innerHTML = `
     <div class="flex h-screen w-screen overflow-hidden bg-[#f4f6fa] text-slate-900">
@@ -663,6 +815,10 @@ function render() {
 
           <!-- Top Right Controls -->
           <div class="flex items-center gap-3">
+            <button onclick="window.startVirtualTour()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all">
+              <span class="text-amber-500 text-sm">✦</span> Virtual Tour
+            </button>
+
             <div class="bg-white border border-slate-200/90 text-slate-700 px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 shadow-sm">
               <span class="w-2 h-2 rounded-full bg-[#10b981]"></span>
               <span>Local mode</span>
@@ -690,6 +846,7 @@ function render() {
     <!-- Modals -->
     ${state.isTaskModalOpen ? renderTaskModal() : ''}
     ${state.isPipelineModalOpen ? renderPipelineModal() : ''}
+    ${state.isTourOpen ? renderTourModal() : ''}
   `;
 }
 
@@ -724,7 +881,7 @@ function getHeaderTitle(tab) {
     case 'settings':
       return 'System Invariants & Security Parameters';
     case 'help':
-      return 'Operator Manual & System Architecture';
+      return 'Knowledge Base, Product Wiki & Guide';
     default:
       return 'Operations Dashboard';
   }
@@ -747,7 +904,7 @@ function getHeaderSubtitle(tab) {
     case 'settings':
       return 'Enforced constraints and constitutional boundaries governing ZaxterLab operation.';
     case 'help':
-      return 'Standard operating procedures, role definitions, and offline verification commands.';
+      return 'Comprehensive guide, chatbot vs company OS comparison, FAQs, and role archetypes.';
     default:
       return '';
   }
@@ -819,7 +976,7 @@ function renderOverviewTab() {
 
           <div class="pt-4 border-t border-slate-100 mt-4">
             <div class="text-xs font-semibold text-slate-800">Completion score</div>
-            <div class="text-[11px] text-slate-500 mt-0.5">${completionPct}% assessed based on 54 hermetic tests and multi-worker DAG pipeline verification</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">${completionPct}% assessed based on 57 hermetic tests and multi-worker DAG pipeline verification</div>
             <div class="w-48 bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
               <div class="bg-[#b4f53c] h-1.5 rounded-full" style="width: ${completionPct}%"></div>
             </div>
@@ -842,7 +999,7 @@ function renderOverviewTab() {
             </p>
           </div>
 
-          <div class="mt-6">
+          <div class="mt-6 flex items-center gap-3">
             ${
               pendingProps.length > 0
                 ? `<button onclick="window.openProposals()" class="bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-bold text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition-all shadow-sm">
@@ -852,6 +1009,9 @@ function renderOverviewTab() {
                     Run pipeline →
                   </button>`
             }
+            <button onclick="window.startVirtualTour()" class="text-xs text-slate-300 hover:text-white underline underline-offset-4 font-medium">
+              Take Virtual Tour
+            </button>
           </div>
         </div>
       </div>
@@ -984,7 +1144,7 @@ function renderOverviewTab() {
                       </div>
                       <div>
                         <div class="text-xs font-bold text-slate-900">GitHub update</div>
-                        <div class="text-[11px] text-slate-600 mt-0.5">Latest verified commit 6f19e9e</div>
+                        <div class="text-[11px] text-slate-600 mt-0.5">Latest verified commit 4b41da0</div>
                         <div class="text-[10px] text-slate-400">Review actual repository state</div>
                       </div>
                     </div>
@@ -994,7 +1154,7 @@ function renderOverviewTab() {
                       </div>
                       <div>
                         <div class="text-xs font-bold text-slate-900">Test results</div>
-                        <div class="text-[11px] text-slate-600 mt-0.5">54 / 54 tests passing</div>
+                        <div class="text-[11px] text-slate-600 mt-0.5">57 / 57 tests passing</div>
                         <div class="text-[10px] text-slate-400">Hermetic standard library test suite</div>
                       </div>
                     </div>
@@ -1304,7 +1464,7 @@ function renderWorkersTab() {
               <div class="text-[10px] text-slate-400 mt-0.5">Reference Archetype: Riri Williams</div>
 
               <div class="mt-4 space-y-1.5 text-xs text-slate-600">
-                <div>Permission Tier: <strong class="text-slate-800">TIER_2_WORKSPACE</strong></div>
+                <div>Permission Tier: <strong class="text-slate-800">TIER_2_REVERSIBLE</strong></div>
                 <div>Execution Cycle: <strong class="text-slate-800">Read → Plan → Tool → Eval → Log</strong></div>
                 <div>Tools: <code class="text-[11px] text-slate-700 bg-slate-100 px-1 py-0.5 rounded">read, write, list, cmd</code></div>
               </div>
@@ -1606,8 +1766,8 @@ function renderConnectionsTab() {
             <p class="text-xs text-slate-500 mt-1">Strict directory confinement with path traversal prevention.</p>
 
             <div class="mt-4 p-3.5 bg-slate-50 rounded-xl border border-slate-100 space-y-2 text-xs">
-              <div class="flex justify-between"><span class="text-slate-500">Sandbox Root:</span> <code class="font-mono text-slate-800">/root/zakxterlab/workspace</code></div>
-              <div class="flex justify-between"><span class="text-slate-500">Traversal Filter:</span> <span class="font-bold text-slate-800">Enforced</span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Sandbox Directory:</span> <code class="font-mono text-slate-800">./workspace</code></div>
+              <div class="flex justify-between"><span class="text-slate-500">Traversal Filter:</span> <span class="font-bold text-slate-800">Enforced (../../ blocked)</span></div>
               <div class="flex justify-between"><span class="text-slate-500">Shell Subprocesses:</span> <span class="font-bold text-slate-800">Whitelisted Commands Only</span></div>
             </div>
           </div>
@@ -1657,58 +1817,369 @@ function renderSettingsTab() {
             <div class="text-xs font-bold text-slate-900">Persistence Store</div>
             <div class="text-xs text-slate-500">Single local SQLite standard library file.</div>
           </div>
-          <div class="font-mono text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 text-xs">/root/zakxterlab/zaxterlab.db</div>
+          <div class="font-mono text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 text-xs">./zaxterlab.db</div>
         </div>
       </div>
     </div>
   `;
 }
 
-// --- HELP & GUIDE TAB ---
+// --- HELP & GUIDE TAB (Comprehensive Knowledge Base & Wiki) ---
 function renderHelpTab() {
+  const activeSection = state.helpTabActive || 'overview';
+
   return `
     <div class="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h2 class="text-lg font-bold text-slate-900 tracking-tight">Operator Manual & Reference</h2>
-        <p class="text-xs text-slate-500">Essential rules, CLI commands, and organizational archetypes.</p>
+      <!-- Virtual Tour Banner -->
+      <div class="bg-[#0d1629] text-white rounded-2xl p-6 border border-slate-800 shadow-md flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-lime-400/10 border border-lime-400/20 text-[#b4f53c] text-[10px] font-bold uppercase tracking-wider mb-2">
+            <span>✦ Interactive Onboarding</span>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-white">New to ZaxterLab? Take the Guided Virtual Tour</h2>
+          <p class="text-xs text-slate-400 mt-1 max-w-2xl">
+            A 6-step interactive walkthrough explaining how the AI Company Operating System functions, how it differs from a chatbot, and how to operate your autonomous software team.
+          </p>
+        </div>
+        <button onclick="window.startVirtualTour()" class="bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-bold text-xs px-5 py-2.5 rounded-lg transition-all shadow-sm shrink-0 flex items-center gap-2">
+          <span>Start Virtual Tour ✦</span>
+        </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-          <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Quick Commands</h3>
-          <div class="space-y-3 text-xs">
-            <div>
-              <div class="font-semibold text-slate-800">Run Hermetic Test Suite:</div>
-              <pre class="bg-slate-900 text-slate-200 p-2.5 rounded-lg mt-1 font-mono text-[11px]">python3 -m unittest discover -s tests -v</pre>
+      <!-- Navigation Sub-Menu -->
+      <div class="flex items-center gap-2 border-b border-slate-200 pb-3 overflow-x-auto">
+        ${renderHelpSubNavItem('overview', '1. What is ZaxterLab?')}
+        ${renderHelpSubNavItem('vs-bots', '2. ZaxterLab vs Chatbots')}
+        ${renderHelpSubNavItem('scope', '3. Scope & Capabilities')}
+        ${renderHelpSubNavItem('faq', '4. Frequently Asked Questions')}
+        ${renderHelpSubNavItem('archetypes', '5. Marvel Role Archetypes')}
+        ${renderHelpSubNavItem('cli', '6. CLI Commands & Recipes')}
+      </div>
+
+      <!-- Sub-Section Content -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm">
+        ${renderHelpSectionContent(activeSection)}
+      </div>
+    </div>
+  `;
+}
+
+function renderHelpSubNavItem(key, label) {
+  const isActive = (state.helpTabActive || 'overview') === key;
+  return `
+    <button onclick="window.setHelpTab('${key}')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+    isActive
+      ? 'bg-[#0b1326] text-white'
+      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+  }">
+      ${label}
+    </button>
+  `;
+}
+
+function renderHelpSectionContent(section) {
+  switch (section) {
+    case 'overview':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">What is ZaxterLab?</h3>
+          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            ZaxterLab is an <strong>Autonomous AI Company Operating System</strong>. It treats software construction not as a single prompt-response chat, but as an organization of specialized, collaborating AI agents that build, test, and audit software inside a secure local sandbox.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="w-8 h-8 rounded-lg bg-[#0b1326] text-[#b4f53c] font-black text-sm flex items-center justify-center mb-3">1</div>
+              <h4 class="text-sm font-bold text-slate-900">5-Stage Worker Engine</h4>
+              <p class="text-xs text-slate-500 mt-1">Every worker executes: <strong>Read → Plan → Tool Call → Evaluate → Log</strong>. No blind output generation.</p>
             </div>
-            <div>
-              <div class="font-semibold text-slate-800">Start Daemon Server:</div>
-              <pre class="bg-slate-900 text-slate-200 p-2.5 rounded-lg mt-1 font-mono text-[11px]">./scripts/run_daemon.sh</pre>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="w-8 h-8 rounded-lg bg-[#0b1326] text-[#b4f53c] font-black text-sm flex items-center justify-center mb-3">2</div>
+              <h4 class="text-sm font-bold text-slate-900">Dual-Worker Verification</h4>
+              <p class="text-xs text-slate-500 mt-1">Developer worker (Reem) writes files; independent read-only Auditor (Zaks) inspects and approves before task marks complete.</p>
             </div>
-            <div>
-              <div class="font-semibold text-slate-800">Run Specialization Evaluator:</div>
-              <pre class="bg-slate-900 text-slate-200 p-2.5 rounded-lg mt-1 font-mono text-[11px]">curl -X POST http://127.0.0.1:8000/api/evaluator/evaluate</pre>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div class="w-8 h-8 rounded-lg bg-[#0b1326] text-[#b4f53c] font-black text-sm flex items-center justify-center mb-3">3</div>
+              <h4 class="text-sm font-bold text-slate-900">Adaptive Specialization</h4>
+              <p class="text-xs text-slate-500 mt-1">Starts with one worker. New specialists are spawned only when justified by workload telemetry and approved by the owner.</p>
             </div>
           </div>
         </div>
+      `;
 
-        <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-sm space-y-4">
-          <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Marvel Reference Mappings</h3>
-          <ul class="space-y-2 text-xs text-slate-600">
-            <li><strong>Reem (Riri Williams):</strong> Construction & programming worker.</li>
-            <li><strong>Zaks (Vision):</strong> Independent audit and oversight.</li>
-            <li><strong>Aroosh (Shuri):</strong> Quality assurance and regression testing.</li>
-            <li><strong>Sirfaraz (Nick Fury):</strong> Central command coordinator (dormant).</li>
-            <li><strong>Hadi (Peter Parker):</strong> Planning & strategy (dormant).</li>
-            <li><strong>Khadija (Tony Stark):</strong> Chief architect (dormant).</li>
-          </ul>
+    case 'vs-bots':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">ZaxterLab vs. Traditional AI Chatbots / Bots</h3>
+          <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+            What is the fundamental difference between ZaxterLab and tools like ChatGPT, Claude, or a standard conversational bot?
+          </p>
+
+          <div class="mt-5 overflow-x-auto">
+            <table class="w-full text-left text-xs border border-slate-200 rounded-xl overflow-hidden">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th class="p-3.5 font-bold">Dimension</th>
+                  <th class="p-3.5 font-bold text-slate-500">Traditional AI Chatbot (ChatGPT, Claude)</th>
+                  <th class="p-3.5 font-bold text-emerald-700 bg-emerald-50/50">ZaxterLab Company OS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Execution Model</td>
+                  <td class="p-3.5 text-slate-600">Prints code blocks in a chat stream. You must manually copy-paste.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">Directly writes, edits, and runs files in a sandboxed local workspace.</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Verification & Quality</td>
+                  <td class="p-3.5 text-slate-600">None. The user is the tester and must find syntax or logic bugs.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">Independent Auditor (Zaks) + QA runner (Aroosh) verify before completion.</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Multi-Task Dependencies</td>
+                  <td class="p-3.5 text-slate-600">Single linear conversation without dependency tracking.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">DAG Orchestrator with topological sorting, retries, and upstream failure gating.</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Cost & Spend Risk</td>
+                  <td class="p-3.5 text-slate-600">Credit card API billing that can spike unexpectedly with loops.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">Constitutional hard lock at exactly USD $0.00. 100% offline-ready.</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Memory & Audit Trail</td>
+                  <td class="p-3.5 text-slate-600">Opaque or ephemeral chat history; no structured logs.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">Tamper-evident SQLite database recording all steps, tools, and token metrics.</td>
+                </tr>
+                <tr>
+                  <td class="p-3.5 font-semibold text-slate-900">Organization Scaling</td>
+                  <td class="p-3.5 text-slate-600">Monolithic prompt or chaotic uncoordinated swarms.</td>
+                  <td class="p-3.5 font-semibold text-emerald-800 bg-emerald-50/30">Adaptive Specialization Evaluator: authors proposals requiring owner approval.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+    case 'scope':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">Working Scope & System Boundaries</h3>
+          <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+            Honest breakdown of what is currently operational and what is intentionally deferred.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-5">
+            <div class="p-5 bg-emerald-50/50 rounded-xl border border-emerald-200">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Verified Working Capabilities
+              </h4>
+              <ul class="space-y-2 mt-3 text-xs text-slate-700">
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Deterministic offline worker engine with zero financial spend.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Sandboxed workspace directory with strict path traversal prevention.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Dual-worker review loop (Reem dev $\to$ Zaks audit clearance).</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Multi-worker DAG task orchestrator with dependency ordering and retries.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Specialization Evaluator authoring 3-way tradeoff proposals.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Interactive owner approval/rejection web management circuit.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Local Ollama model adapter with automatic offline fallback.</span></li>
+                <li class="flex items-start gap-2"><span class="text-emerald-600 font-bold">✓</span> <span>Cross-platform Windows, Linux, and macOS execution.</span></li>
+              </ul>
+            </div>
+
+            <div class="p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span> Deferred / Out of Scope Boundaries
+              </h4>
+              <ul class="space-y-2 mt-3 text-xs text-slate-600">
+                <li class="flex items-start gap-2"><span class="text-slate-400 font-bold">•</span> <span>External paid APIs (OpenAI, Anthropic): Prohibited by $0.00 hard spend invariant.</span></li>
+                <li class="flex items-start gap-2"><span class="text-slate-400 font-bold">•</span> <span>Multi-host network distributed clustering: Intentionally single-node SQLite.</span></li>
+                <li class="flex items-start gap-2"><span class="text-slate-400 font-bold">•</span> <span>Unrestricted shell execution: Restricted strictly to whitelisted tools.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'faq':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">Frequently Asked Questions (FAQ)</h3>
+          <p class="text-xs text-slate-500 mt-1">Common questions asked by owners and engineers.</p>
+
+          <div class="space-y-3 mt-5 text-xs">
+            <details class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 group">
+              <summary class="font-bold text-slate-900 cursor-pointer list-none flex items-center justify-between">
+                <span>Can ZaxterLab ever incur charges or spend my money?</span>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <p class="text-slate-600 mt-2.5 leading-relaxed">
+                <strong>No.</strong> The authorized spend limit is hard-locked at exactly $0.00 USD in code. If any provider, model, or tool attempts to bill, the <code>SpendGuard</code> immediately raises an exception and aborts execution.
+              </p>
+            </details>
+
+            <details class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 group">
+              <summary class="font-bold text-slate-900 cursor-pointer list-none flex items-center justify-between">
+                <span>Can workers access my private files or system folders?</span>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <p class="text-slate-600 mt-2.5 leading-relaxed">
+                <strong>No.</strong> All file operations (read, write, list) are strictly sandboxed inside the designated <code>./workspace</code> directory. Path traversal attempts (like <code>../../etc/passwd</code> or <code>C:\\Users\\...</code>) trigger immediate permission denial via <code>WorkspaceGuard</code>.
+              </p>
+            </details>
+
+            <details class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 group">
+              <summary class="font-bold text-slate-900 cursor-pointer list-none flex items-center justify-between">
+                <span>Who makes the final decision to add or spawn a new worker?</span>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <p class="text-slate-600 mt-2.5 leading-relaxed">
+                <strong>Only you (the Human Owner).</strong> Even if the Specialization Evaluator identifies a bottleneck, it only authors a formal proposal. The role remains dormant until you click "Approve" in the dashboard.
+              </p>
+            </details>
+
+            <details class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 group">
+              <summary class="font-bold text-slate-900 cursor-pointer list-none flex items-center justify-between">
+                <span>How do I connect local open-source LLMs (e.g. Qwen, Llama)?</span>
+                <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+              <p class="text-slate-600 mt-2.5 leading-relaxed">
+                Install <strong>Ollama</strong> and run <code>ollama run qwen2.5-coder</code>. ZaxterLab automatically detects the local endpoint at <code>http://127.0.0.1:11434</code> with $0.00 spend intact. If Ollama is closed, it falls back cleanly to offline mock execution.
+              </p>
+            </details>
+          </div>
+        </div>
+      `;
+
+    case 'archetypes':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">Marvel-Inspired Role Archetypes</h3>
+          <p class="text-xs text-slate-500 mt-1">Established references used for organizational hierarchy and separation of duties.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-xs">
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/70">
+              <div class="font-bold text-slate-900 text-sm">Reem (Riri Williams)</div>
+              <div class="text-[11px] text-slate-500">Construction & Programming (Active Worker 1)</div>
+              <p class="text-slate-600 mt-2">Iterative code authoring, filesystem manipulation, and technical implementation.</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/70">
+              <div class="font-bold text-slate-900 text-sm">Zaks (Vision)</div>
+              <div class="text-[11px] text-slate-500">Independent Audit & Oversight (Active Worker 2)</div>
+              <p class="text-slate-600 mt-2">Read-only code auditor evaluating correctness, boundary compliance, and security before release.</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/70">
+              <div class="font-bold text-slate-900 text-sm">Aroosh (Shuri)</div>
+              <div class="text-[11px] text-slate-500">Quality Assurance & Test Automation (Activated Specialist)</div>
+              <p class="text-slate-600 mt-2">Subprocess execution, test suite verification, and regression prevention.</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/70">
+              <div class="font-bold text-slate-900 text-sm">Hadi (Peter Parker)</div>
+              <div class="text-[11px] text-slate-500">Planning & Tactical Task DAG Authoring (Dormant)</div>
+              <p class="text-slate-600 mt-2">Decomposing complex goals into topological task graphs when backlog exceeds threshold.</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'cli':
+      return `
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">CLI Commands & Operator Recipes</h3>
+          <p class="text-xs text-slate-500 mt-1">Helpful shell commands for running, testing, and managing ZaxterLab.</p>
+
+          <div class="space-y-4 mt-5 text-xs">
+            <div>
+              <div class="font-semibold text-slate-800">1. Run Full Hermetic Test Suite:</div>
+              <pre class="bg-slate-900 text-slate-200 p-3 rounded-lg mt-1 font-mono text-[11px]">python -m unittest discover -s tests -v</pre>
+            </div>
+
+            <div>
+              <div class="font-semibold text-slate-800">2. Start Web Dashboard Daemon:</div>
+              <pre class="bg-slate-900 text-slate-200 p-3 rounded-lg mt-1 font-mono text-[11px]">python -m zaxterlab --host 127.0.0.1 --port 8000</pre>
+            </div>
+
+            <div>
+              <div class="font-semibold text-slate-800">3. Trigger Workload Evaluator via cURL:</div>
+              <pre class="bg-slate-900 text-slate-200 p-3 rounded-lg mt-1 font-mono text-[11px]">curl -X POST http://127.0.0.1:8000/api/evaluator/evaluate</pre>
+            </div>
+          </div>
+        </div>
+      `;
+
+    default:
+      return '';
+  }
+}
+
+// --- MODALS ---
+function renderTourModal() {
+  const currentStep = tourSteps[state.tourStep] || tourSteps[0];
+  const total = tourSteps.length;
+  const progressPct = ((state.tourStep + 1) / total) * 100;
+
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
+      <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 flex flex-col justify-between animate-in fade-in zoom-in duration-200">
+        <div>
+          <!-- Header -->
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-lime-600 bg-lime-50 px-2 py-0.5 rounded-full border border-lime-200">
+                ${currentStep.badge}
+              </span>
+              <h3 class="text-base font-bold text-slate-900 mt-1">${currentStep.title}</h3>
+            </div>
+            <button onclick="window.closeTour()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full bg-slate-100 h-1 rounded-full mt-3 overflow-hidden">
+            <div class="bg-[#b4f53c] h-1 rounded-full transition-all duration-300" style="width: ${progressPct}%"></div>
+          </div>
+
+          <!-- Step Content -->
+          <div class="mt-4">
+            ${currentStep.content}
+          </div>
+        </div>
+
+        <!-- Footer Stepper Controls -->
+        <div class="pt-4 border-t border-slate-100 mt-6 flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            ${tourSteps
+              .map(
+                (_, idx) => `
+              <span class="w-2 h-2 rounded-full transition-all ${
+                idx === state.tourStep ? 'bg-[#0b1326] w-4' : 'bg-slate-200'
+              }"></span>
+            `
+              )
+              .join('')}
+          </div>
+
+          <div class="flex items-center gap-2">
+            ${
+              state.tourStep > 0
+                ? `<button onclick="window.prevTourStep()" class="px-3.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold">
+                    ← Back
+                  </button>`
+                : ''
+            }
+            <button onclick="window.nextTourStep()" class="px-4 py-1.5 rounded-lg bg-[#0b1326] hover:bg-[#131d36] text-white text-xs font-bold shadow-sm">
+              ${state.tourStep === total - 1 ? 'Finish Tour ✓' : 'Next Step →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   `;
 }
 
-// --- MODALS ---
 function renderTaskModal() {
   return `
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
