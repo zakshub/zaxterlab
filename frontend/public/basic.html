@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZaxterLab — Basic Graphical Interface (Form 2: Desktop GUI)</title>
+  <link rel="stylesheet" href="./basic.css" />
+</head>
+<body>
+  <!-- System Menu Bar -->
+  <header id="desktop-menubar">
+    <div class="menu-brand">
+      <span class="icon">&#9881;</span> <strong>ZAXTERLAB GUI</strong>
+      <span class="badge">Form 2: Basic GUI</span>
+    </div>
+    <nav class="menu-items">
+      <div class="dropdown">
+        <button class="menu-btn">Actions &#9662;</button>
+        <div class="dropdown-content">
+          <a href="#" id="menu-run-pipeline">Run 2-Stage DAG Pipeline</a>
+          <a href="#" id="menu-run-evaluator">Run Workload Evaluator</a>
+          <a href="#" id="menu-run-internal">Execute Internal Transformation DAG</a>
+          <hr />
+          <a href="#" id="menu-refresh">Refresh State (F5 / r)</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        <button class="menu-btn">Windows &#9662;</button>
+        <div class="dropdown-content">
+          <a href="#win-tasks">Tasks Queue</a>
+          <a href="#win-saas">SaaS Venture Builder</a>
+          <a href="#win-specialists">Specialist Workforce</a>
+          <a href="#win-files">Workspace Browser</a>
+          <a href="#win-audit">Audit Trail</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        <button class="menu-btn">Interface Forms &#9662;</button>
+        <div class="dropdown-content">
+          <a href="/">1. Zero-UI Workbench / CLI info</a>
+          <a href="/basic.html" class="active-item">2. Basic Graphical Interface (Current)</a>
+        </div>
+      </div>
+    </nav>
+    <div class="menu-telemetry">
+      <span id="spend-indicator" class="telemetry-pill success">Spend: $0.00 / $0.00</span>
+      <span id="engine-indicator" class="telemetry-pill">Engine: Local Offline</span>
+    </div>
+  </header>
+
+  <!-- Desktop Workspace Body -->
+  <main id="desktop-body">
+    <!-- Window 1: System Telemetry & Quick Action Bar -->
+    <div class="gui-window" id="win-telemetry">
+      <div class="window-header">
+        <span class="window-title">&#9635; System Diagnostic &amp; Quick Dispatch Bar</span>
+        <div class="window-controls">
+          <button class="btn-refresh-data" title="Refresh State">&#8635;</button>
+        </div>
+      </div>
+      <div class="window-body flex-row">
+        <div class="metric-card">
+          <div class="metric-label">SYSTEM HEALTH</div>
+          <div class="metric-value" id="val-health">HEALTHY</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">SPEND GUARD</div>
+          <div class="metric-value green" id="val-spend">$0.00 (LOCKED)</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">ACTIVE SPECIALISTS</div>
+          <div class="metric-value" id="val-specialists">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">TASKS QUEUED</div>
+          <div class="metric-value" id="val-tasks">0</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">PERSISTED PROJECTS</div>
+          <div class="metric-value" id="val-projects">0</div>
+        </div>
+        <div class="quick-actions">
+          <button id="btn-quick-pipeline" class="action-btn primary">&#9658; Run 2-Stage Pipeline</button>
+          <button id="btn-quick-internal" class="action-btn">&#9733; Internal Transform</button>
+          <button id="btn-quick-eval" class="action-btn">&#9878; Evaluate Workload</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Window 2: Notification & Live Action Output -->
+    <div class="gui-window" id="win-console">
+      <div class="window-header">
+        <span class="window-title">&#9635; Real-Time Action Console &amp; Output Trace</span>
+        <span id="console-status" class="status-indicator">Ready</span>
+      </div>
+      <div class="window-body">
+        <pre id="console-output">ZaxterLab Basic Graphical Interface initialized. Press 'p' for pipeline, 'r' to refresh, or select actions from menu.</pre>
+      </div>
+    </div>
+
+    <div class="gui-grid-2">
+      <!-- Window 3: Task Management & Creator -->
+      <div class="gui-window" id="win-tasks">
+        <div class="window-header">
+          <span class="window-title">&#9635; Task Queue &amp; Direct Dispatch</span>
+          <button id="btn-toggle-task-form" class="btn-mini">+ New Task</button>
+        </div>
+        <div class="window-body">
+          <form id="task-create-form" class="mini-form">
+            <div class="form-row">
+              <input type="text" id="task-title" placeholder="Task Title (e.g. Implement Webhook Auth)" required />
+              <select id="task-specialist"></select>
+            </div>
+            <div class="form-row">
+              <input type="text" id="task-desc" placeholder="Specification / Instructions for specialist worker" />
+              <input type="text" id="task-deps" placeholder="Prerequisite Task IDs (comma-separated, optional)" />
+            </div>
+            <div class="form-row right">
+              <button type="submit" id="btn-create-task" class="btn-sm">Create Task</button>
+              <button type="button" id="btn-create-exec-task" class="btn-sm primary">Create &amp; Execute Now</button>
+            </div>
+          </form>
+
+          <div class="table-container">
+            <table class="gui-table" id="tasks-table">
+              <thead>
+                <tr>
+                  <th>Task ID</th>
+                  <th>Title</th>
+                  <th>Specialist</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tasks-tbody">
+                <tr><td colspan="5" class="empty-state">Loading tasks...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Window 4: SaaS Venture Builder -->
+      <div class="gui-window" id="win-saas">
+        <div class="window-header">
+          <span class="window-title">&#9635; 5-Department SaaS Venture Builder</span>
+          <span class="badge">Hadi &rarr; Sirfaraz &rarr; Reem &rarr; Aroosh &rarr; Zaks</span>
+        </div>
+        <div class="window-body">
+          <form id="saas-form" class="mini-form">
+            <div class="form-row">
+              <div class="field-group">
+                <label for="saas-name">Venture Name</label>
+                <input type="text" id="saas-name" placeholder="e.g. CloudAudit Engine" required />
+              </div>
+              <div class="field-group">
+                <label for="saas-domain">Domain / Industry</label>
+                <input type="text" id="saas-domain" placeholder="e.g. Cloud Security & Compliance" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field-group full">
+                <label for="saas-reqs">Business &amp; Technical Requirements</label>
+                <textarea id="saas-reqs" rows="3" placeholder="Define requirements for Hadi (BA), Sirfaraz (Arch), Reem (Eng), Aroosh (QA), and Zaks (Audit)..." required></textarea>
+              </div>
+            </div>
+            <div class="form-row right">
+              <button type="submit" id="btn-build-saas" class="action-btn primary">&#9881; Execute 5-Department SaaS Delivery</button>
+            </div>
+          </form>
+
+          <div id="saas-output-panel" class="sub-panel hidden">
+            <h4>Generated Departmental Delivery:</h4>
+            <div id="saas-artifacts-list" class="artifact-pills"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gui-grid-2">
+      <!-- Window 5: Workforce Specialists & Dynamic Spawning -->
+      <div class="gui-window" id="win-specialists">
+        <div class="window-header">
+          <span class="window-title">&#9635; Registered Specialists (<span id="spec-count">0</span>)</span>
+          <button id="btn-toggle-spawn" class="btn-mini">+ Spawn Specialist</button>
+        </div>
+        <div class="window-body">
+          <form id="spawn-form" class="mini-form hidden">
+            <div class="form-row">
+              <input type="text" id="spawn-name" placeholder="Name (e.g. Tariq)" required />
+              <input type="text" id="spawn-role" placeholder="Role (e.g. Penetration Tester)" required />
+              <input type="text" id="spawn-dept" placeholder="Department" value="Engineering" required />
+            </div>
+            <div class="form-row">
+              <input type="text" id="spawn-gap" placeholder="Capability gap justification..." required />
+              <label class="checkbox-inline">
+                <input type="checkbox" id="spawn-approve" checked /> Auto-Approve &amp; Activate
+              </label>
+              <button type="submit" class="btn-sm primary">Spawn</button>
+            </div>
+          </form>
+
+          <div class="table-container">
+            <table class="gui-table" id="specialists-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Department</th>
+                  <th>Tier</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="specialists-tbody">
+                <tr><td colspan="5" class="empty-state">Loading specialists...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Window 6: Workspace Files & Direct Reader -->
+      <div class="gui-window" id="win-files">
+        <div class="window-header">
+          <span class="window-title">&#9635; Sandboxed Workspace Files</span>
+          <div class="dir-nav">
+            <button id="btn-ws-root" class="btn-mini">&#8962; Root</button>
+            <span id="current-dir-label">./</span>
+          </div>
+        </div>
+        <div class="window-body split-h">
+          <div class="file-list-pane">
+            <ul id="files-list" class="gui-file-tree">
+              <li class="empty-state">Scanning workspace...</li>
+            </ul>
+          </div>
+          <div class="file-content-pane">
+            <div class="content-header" id="selected-file-label">Select a file to inspect disk contents</div>
+            <pre id="file-content-view">No file selected.</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Window 7: Immutable Audit Trail -->
+    <div class="gui-window" id="win-audit">
+      <div class="window-header">
+        <span class="window-title">&#9635; Immutable SQLite Audit Trail</span>
+        <button id="btn-refresh-audit" class="btn-mini">&#8635; Refresh Audit</button>
+      </div>
+      <div class="window-body">
+        <div class="table-container max-h">
+          <table class="gui-table" id="audit-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>Entity ID</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody">
+              <tr><td colspan="5" class="empty-state">Loading audit logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Status Bar Footer -->
+  <footer id="desktop-statusbar">
+    <div class="status-section">
+      <span class="status-dot green"></span>
+      <span id="global-status">System Operational &bull; USD $0.00 Limit Locked</span>
+    </div>
+    <div class="status-section right">
+      <span>Shortcuts: <strong>[p]</strong> Pipeline | <strong>[r]</strong> Refresh | <strong>[1-5]</strong> Windows</span>
+    </div>
+  </footer>
+
+  <script type="module" src="./basic.js"></script>
+</body>
+</html>

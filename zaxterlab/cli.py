@@ -431,6 +431,9 @@ def build_parser() -> argparse.ArgumentParser:
     # 1. status
     subparsers.add_parser("status", parents=[json_parent], help="Show system status, workers, spend guard, and stats")
 
+    # 1b. tui (Terminal Graphical User Interface)
+    subparsers.add_parser("tui", help="Launch interactive curses-based Terminal Graphical Interface (Form 2)")
+
     # 2. server
     p_server = subparsers.add_parser("server", help="Start the HTTP API & Web UI server")
     p_server.add_argument("--host", default="127.0.0.1", help="Host interface (default: 127.0.0.1)")
@@ -544,6 +547,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     try:
         if args.subcommand == "status":
             return cmd_status(service, args)
+
+        elif args.subcommand == "tui":
+            from zaxterlab.ui.tui import ZaxterLabTUI
+            tui_app = ZaxterLabTUI(service=service, store=store)
+            tui_app.run()
+            return 0
 
         elif args.subcommand == "task":
             action = getattr(args, "task_action", "list") or "list"
