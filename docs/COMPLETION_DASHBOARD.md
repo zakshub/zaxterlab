@@ -63,17 +63,18 @@ ZaxterLab is designed as an adaptive, resilient AI Company Operating System star
   - `GET /api/workspace/files` & `file-content` — Read sandboxed workspace contents.
   - Static asset serving for frontend dashboard.
 
-### Pillar 5: Operations Dashboard & 3D Visualizer — 100% [VERIFIED]
-- **Technology**: Zero-build Native Browser ES Modules with Three.js 3D neural graph visualization.
-- **Visual Distinction**: Prominent live banner distinguishing between `DEMO — SIMULATED EVENTS` and `LIVE BACKEND CONNECTED`.
+### Pillar 5: Operations Dashboard & Evidence-First UI — 100% [VERIFIED]
+- **Design Authority & Visual Target**: Re-architected strictly in accordance with `zakshub/designer` intelligence and visual target `zaxterlab_ui_reference.png`.
+- **Visual Design**: Premium light interface with `#0b1326` dark navy sidebar, `#f4f6fa` background, white content panels with restrained borders, and `#b4f53c` lime green primary accent.
+- **Visual Distinction**: Prominent `● Local mode` status badge, zero fake live indicators, plain-English status copy.
 - **Interactive Views**:
-  - Operations Core (Live 3D Neural Scene + Execution Phases)
-  - Honest Product Completion Dashboard (Dynamic progress gauges, verified evidence table, owner summary)
-  - Workload Manager (Task status, step traces, token metrics, pipeline DAG runner)
-  - Workspace File Explorer (Sandboxed tree inspection)
-  - Audit Trail (Immutable event log)
-  - Role Roster & Spawning Proposals (Live specialist team, pending proposal cards with approve/reject buttons, historical audit decisions, dormant reference roles)
-  - System Invariants (Spend and isolation locks)
+  - **Overview**: Product Completion panel with dynamic SVG donut chart (`94% ASSESSED`), Next Best Action card with live proposal routing, System Health 4-card matrix (Core checks, Pending approvals, Recent runs, Spend used), Completion by area progress bars, and Recent activity timeline.
+  - **Completion**: Evidence-backed capabilities matrix (Verified working, Partially complete, Unverified deferred).
+  - **Tasks & Runs**: Task queue, status badges, specialist routing, dependency visualization, step traces, New Task modal, and DAG pipeline runner.
+  - **Workers**: Active worker roster (Reem, Zaks, Aroosh), empirical specialist spawning proposals with interactive Approve/Reject controls.
+  - **Activity Log**: Immutable audit ledger with SQLite events and timestamps.
+  - **Connections**: Local Ollama model endpoint, offline fallback, and workspace boundary sandbox containment.
+  - **Settings & Help**: System invariants ($0.00 hard spend limit), operator manual, Marvel archetypes.
 
 ### Pillar 6: Adaptive Scaling & Specialization Evaluator — 100% [VERIFIED]
 - **SpecializationEvaluator (`zaxterlab/engine/evaluator.py`)**:

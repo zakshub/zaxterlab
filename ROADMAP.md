@@ -122,9 +122,11 @@ ZaxterLab's implementation follows a strict, milestone-gated evolution. No phase
   - Multi-Worker Task Orchestrator (`zaxterlab/engine/orchestrator.py`) with topological DAG sorting and upstream failure propagation (`BLOCKED_BY_UPSTREAM`).
   - Worker Performance Evaluator (`zaxterlab/engine/telemetry.py`) tracking throughput, token consumption, first-pass pass rate, and bottleneck identification.
   - Dynamic Specialist Proposal Review & Activation UI in Operations Dashboard.
+  - UI Redesign matching `zakshub/designer` intelligence and visual target `zaxterlab_ui_reference.png` (light theme, dark navy sidebar, lime accents, evidence-backed completion gauge, health cards).
 - **Acceptance Criteria**:
   1. [x] Complex multi-step requests are decomposed into validated DAGs before assignment.
   2. [x] Orchestrator dispatches sub-tasks to appropriate active specialists without human intervention.
+  3. [x] Operations UI visually aligns with `zaxterlab_ui_reference.png` and adheres strictly to `zakshub/designer` principles.
   3. [x] Coordination overhead remains strictly below 25% of total system token consumption.
   4. [x] Upstream failures safely halt dependent tasks and retry recoverable errors up to configured thresholds.
 

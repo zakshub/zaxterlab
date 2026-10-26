@@ -47,7 +47,7 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
         parsed_url = urlparse(self.path)
         path = parsed_url.path.rstrip("/")
         if path.startswith("/api"):
-            self._set_headers(200)
+            self._set_headers(200, content_type="application/json; charset=utf-8")
             return
 
         frontend_dir = Path("/root/zakxterlab/frontend/public")
@@ -56,9 +56,19 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
             req_file = "index.html"
         target_file = (frontend_dir / req_file).resolve()
         if target_file.exists() and target_file.is_file():
-            self._set_headers(200)
+            content_types = {
+                ".html": "text/html; charset=utf-8",
+                ".js": "application/javascript; charset=utf-8",
+                ".mjs": "application/javascript; charset=utf-8",
+                ".css": "text/css; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".png": "image/png",
+                ".svg": "image/svg+xml",
+            }
+            ctype = content_types.get(target_file.suffix, "application/octet-stream")
+            self._set_headers(200, content_type=ctype)
         else:
-            self._set_headers(404)
+            self._set_headers(404, content_type="text/plain; charset=utf-8")
 
     def _send_json(self, data: Any, status_code: int = 200) -> None:
         payload = json.dumps(data, indent=2).encode("utf-8")
