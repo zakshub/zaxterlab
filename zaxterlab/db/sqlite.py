@@ -46,8 +46,13 @@ class SQLiteStore:
                     description TEXT NOT NULL,
                     status TEXT NOT NULL,
                     assigned_agent_id TEXT,
+                    assigned_specialist TEXT,
                     input_context_json TEXT NOT NULL,
+                    depends_on_json TEXT NOT NULL DEFAULT '[]',
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    max_retries INTEGER NOT NULL DEFAULT 2,
                     result_summary TEXT,
+                    error_message TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -110,6 +115,19 @@ class SQLiteStore:
                 CREATE INDEX IF NOT EXISTS idx_proposals_status ON spawning_proposals(status);
                 """
             )
+            # Migration check: add new columns if table existed before
+            cursor = self._conn.execute("PRAGMA table_info(tasks)")
+            cols = {row["name"] for row in cursor.fetchall()}
+            if "depends_on_json" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN depends_on_json TEXT DEFAULT '[]'")
+            if "retry_count" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN retry_count INTEGER DEFAULT 0")
+            if "max_retries" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN max_retries INTEGER DEFAULT 2")
+            if "assigned_specialist" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN assigned_specialist TEXT")
+            if "error_message" not in cols:
+                self._conn.execute("ALTER TABLE tasks ADD COLUMN error_message TEXT")
 
     def close(self) -> None:
         """Close database connection."""
@@ -124,16 +142,24 @@ class SQLiteStore:
                 """
                 INSERT INTO tasks (
                     task_id, title, description, status,
-                    assigned_agent_id, input_context_json,
-                    result_summary, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    assigned_agent_id, assigned_specialist,
+                    input_context_json, depends_on_json,
+                    retry_count, max_retries,
+                    result_summary, error_message,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(task_id) DO UPDATE SET
                     title = excluded.title,
                     description = excluded.description,
                     status = excluded.status,
                     assigned_agent_id = excluded.assigned_agent_id,
+                    assigned_specialist = excluded.assigned_specialist,
                     input_context_json = excluded.input_context_json,
+                    depends_on_json = excluded.depends_on_json,
+                    retry_count = excluded.retry_count,
+                    max_retries = excluded.max_retries,
                     result_summary = excluded.result_summary,
+                    error_message = excluded.error_message,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -142,8 +168,13 @@ class SQLiteStore:
                     task.description,
                     task.status.value,
                     task.assigned_agent_id,
+                    task.assigned_specialist,
                     json.dumps(task.input_context),
+                    json.dumps(task.depends_on),
+                    task.retry_count,
+                    task.max_retries,
                     task.result_summary,
+                    task.error_message,
                     task.created_at,
                     task.updated_at,
                 ),
@@ -158,18 +189,7 @@ class SQLiteStore:
         row = cursor.fetchone()
         if not row:
             return None
-
-        return Task(
-            task_id=row["task_id"],
-            title=row["title"],
-            description=row["description"],
-            status=TaskStatus(row["status"]),
-            assigned_agent_id=row["assigned_agent_id"],
-            input_context=json.loads(row["input_context_json"]),
-            result_summary=row["result_summary"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-        )
+        return self._row_to_task(row)
 
     def list_tasks(self, status: Optional[TaskStatus] = None) -> list[Task]:
         """List all tasks, optionally filtered by status."""
@@ -183,22 +203,32 @@ class SQLiteStore:
                 "SELECT * FROM tasks ORDER BY created_at ASC"
             )
 
-        results = []
-        for row in cursor.fetchall():
-            results.append(
-                Task(
-                    task_id=row["task_id"],
-                    title=row["title"],
-                    description=row["description"],
-                    status=TaskStatus(row["status"]),
-                    assigned_agent_id=row["assigned_agent_id"],
-                    input_context=json.loads(row["input_context_json"]),
-                    result_summary=row["result_summary"],
-                    created_at=row["created_at"],
-                    updated_at=row["updated_at"],
-                )
-            )
-        return results
+        return [self._row_to_task(row) for row in cursor.fetchall()]
+
+    def _row_to_task(self, row: sqlite3.Row) -> Task:
+        cols = row.keys()
+        depends_on = json.loads(row["depends_on_json"]) if "depends_on_json" in cols and row["depends_on_json"] else []
+        retry_count = int(row["retry_count"]) if "retry_count" in cols and row["retry_count"] is not None else 0
+        max_retries = int(row["max_retries"]) if "max_retries" in cols and row["max_retries"] is not None else 2
+        assigned_specialist = row["assigned_specialist"] if "assigned_specialist" in cols else None
+        error_message = row["error_message"] if "error_message" in cols else None
+
+        return Task(
+            task_id=row["task_id"],
+            title=row["title"],
+            description=row["description"],
+            status=TaskStatus(row["status"]),
+            assigned_agent_id=row["assigned_agent_id"],
+            assigned_specialist=assigned_specialist,
+            input_context=json.loads(row["input_context_json"]),
+            depends_on=depends_on,
+            retry_count=retry_count,
+            max_retries=max_retries,
+            result_summary=row["result_summary"],
+            error_message=error_message,
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
 
     # --- Session Operations ---
 

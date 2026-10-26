@@ -135,6 +135,9 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                     status = query.get("status", [None])[0]
                     self._send_json(self.service.list_proposals(status=status))
 
+                elif path == "/api/telemetry":
+                    self._send_json(self.service.get_performance_telemetry())
+
                 else:
                     self._send_error("NOT_FOUND", f"Endpoint '{path}' not found.", 404)
 
@@ -200,6 +203,9 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                 result = self.service.create_task(body)
                 self._send_json(result, status_code=201)
 
+            elif path == "/api/pipeline/run":
+                self._send_json(self.service.run_pipeline(body))
+
             elif path.startswith("/api/tasks/") and path.endswith("/execute"):
                 parts = path.split("/")
                 # /api/tasks/{task_id}/execute
@@ -225,6 +231,9 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
                         self._send_error("NOT_FOUND", f"Unknown session action: '{action}'.", 404)
                 else:
                     self._send_error("NOT_FOUND", "Unknown session endpoint", 404)
+
+            elif path == "/api/evaluator/evaluate":
+                self._send_json(self.service.trigger_evaluation())
 
             elif path.startswith("/api/evaluator/proposals/"):
                 parts = path.split("/")

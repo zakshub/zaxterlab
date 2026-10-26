@@ -1,0 +1,15 @@
+[Unit]
+Description=ZaxterLab — Autonomous AI Company Operating System
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/zakxterlab
+ExecStart=/usr/bin/python3 -m zaxterlab --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

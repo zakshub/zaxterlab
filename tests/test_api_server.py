@@ -161,7 +161,34 @@ class TestAPIServer(unittest.TestCase):
         self.assertIn("overall_completion_pct", comp_res)
         self.assertIn("pillars", comp_res)
         self.assertIn("capabilities", comp_res)
-        self.assertEqual(comp_res["overall_completion_pct"], 88)
+        self.assertEqual(comp_res["overall_completion_pct"], 94)
+
+    def test_pipeline_and_telemetry_api(self):
+        # 1. Create task 1
+        status, t1_res = self._http_post("/api/tasks", {"title": "Task 1", "description": "Desc 1"})
+        self.assertEqual(status, 201)
+        t1_id = t1_res["task"]["task_id"]
+
+        # 2. Create task 2 depending on task 1
+        status, t2_res = self._http_post(
+            "/api/tasks",
+            {"title": "Task 2", "description": "Desc 2", "depends_on": [t1_id]},
+        )
+        self.assertEqual(status, 201)
+        t2_id = t2_res["task"]["task_id"]
+
+        # 3. Run pipeline
+        status, pipe_res = self._http_post("/api/pipeline/run", {"task_ids": [t1_id, t2_id]})
+        self.assertEqual(status, 200)
+        self.assertEqual(pipe_res["total"], 2)
+        self.assertEqual(pipe_res["completed"], 2)
+
+        # 4. Check telemetry endpoint
+        status, telem_res = self._http_get("/api/telemetry")
+        self.assertEqual(status, 200)
+        self.assertIn("token_economics", telem_res)
+        self.assertIn("auditor_efficiency", telem_res)
+        self.assertTrue(telem_res["token_economics"]["spend_bound_satisfied"])
 
     def test_evaluator_api_endpoints(self):
         # 1. Check evaluator status

@@ -25,6 +25,7 @@ class TaskStatus(str, Enum):
     FAILED = "FAILED"
     SUSPENDED = "SUSPENDED"
     BLOCKED = "BLOCKED"
+    BLOCKED_BY_UPSTREAM = "BLOCKED_BY_UPSTREAM"
 
 
 class SessionStatus(str, Enum):
@@ -238,8 +239,13 @@ class Task:
     description: str
     status: TaskStatus = TaskStatus.SUBMITTED
     assigned_agent_id: Optional[str] = None
+    assigned_specialist: Optional[str] = None
     input_context: dict[str, Any] = field(default_factory=dict)
+    depends_on: list[str] = field(default_factory=list)
+    retry_count: int = 0
+    max_retries: int = 2
     result_summary: Optional[str] = None
+    error_message: Optional[str] = None
     created_at: str = field(default_factory=utc_now_iso)
     updated_at: str = field(default_factory=utc_now_iso)
 
@@ -250,8 +256,13 @@ class Task:
             "description": self.description,
             "status": self.status.value,
             "assigned_agent_id": self.assigned_agent_id,
+            "assigned_specialist": self.assigned_specialist,
             "input_context": dict(self.input_context),
+            "depends_on": list(self.depends_on),
+            "retry_count": self.retry_count,
+            "max_retries": self.max_retries,
             "result_summary": self.result_summary,
+            "error_message": self.error_message,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -264,8 +275,13 @@ class Task:
             description=str(data.get("description", "")),
             status=TaskStatus(data.get("status", TaskStatus.SUBMITTED.value)),
             assigned_agent_id=data.get("assigned_agent_id"),
+            assigned_specialist=data.get("assigned_specialist"),
             input_context=dict(data.get("input_context", {})),
+            depends_on=list(data.get("depends_on", [])),
+            retry_count=int(data.get("retry_count", 0)),
+            max_retries=int(data.get("max_retries", 2)),
             result_summary=data.get("result_summary"),
+            error_message=data.get("error_message"),
             created_at=str(data.get("created_at", utc_now_iso())),
             updated_at=str(data.get("updated_at", utc_now_iso())),
         )

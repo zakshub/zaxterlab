@@ -16,6 +16,8 @@ const state = {
   activeTab: 'home', // 'home' | 'completion' | 'tasks' | 'sessions' | 'agents' | 'workspace' | 'logs' | 'settings'
   health: null,
   completion: null,
+  proposals: [],
+  evaluatorStatus: null,
   tasks: [],
   selectedTaskId: null,
   selectedSession: null,
@@ -150,6 +152,25 @@ const mockData = {
     { id: 2, timestamp: new Date(Date.now() - 1200000).toISOString(), event_type: 'SESSION_CREATED', entity_id: 'sess_demo_02_alpha', details: { task_id: 'task_demo_02' } },
     { id: 3, timestamp: new Date(Date.now() - 800000).toISOString(), event_type: 'STEP_EXECUTED', entity_id: 'sess_demo_02_alpha', details: { step: 2, tool: 'write_file' } },
   ],
+  proposals: [
+    {
+      proposal_id: 'prop_aroosh_demo',
+      target_role_name: 'Aroosh',
+      target_role_title: 'Quality Assurance',
+      archetype: 'Shuri',
+      recommended_permission_tier: 'TIER_1_SAFE',
+      recommended_tools: ['read_file', 'list_dir', 'run_command'],
+      tradeoff_choice: 'PROPOSE_SPECIALIST',
+      empirical_justification: 'Observed 2 test verification cycles. Dedicated QA specialist needed to automate regression validation before handoff.',
+      tradeoff_analysis: {
+        option_1_prompt_refinement: 'Prompt tuning cannot run subprocess hermetic tests.',
+        option_2_worker_reuse: 'Worker 1 is overloaded balancing code scaffolding with test debugging.',
+        option_3_specialist_spawning: 'Activate dormant role Aroosh under TIER_1_SAFE least privilege.'
+      },
+      status: 'PENDING_APPROVAL',
+      created_at: new Date(Date.now() - 600000).toISOString(),
+    }
+  ],
   completion: {
     assessment_date: '2026-10-26',
     overall_completion_pct: 78,
@@ -210,6 +231,7 @@ async function refreshData() {
   if (state.mode === 'demo') {
     state.health = mockData.health;
     state.completion = mockData.completion;
+    state.proposals = [...mockData.proposals];
     state.tasks = [...mockData.tasks];
     state.auditLogs = [...mockData.auditLogs];
     state.workspaceEntries = [...mockData.workspace];
@@ -227,17 +249,21 @@ async function refreshData() {
   } else {
     // Live Backend
     try {
-      const [h, t, l, c] = await Promise.all([
+      const [h, t, l, c, p, e] = await Promise.all([
         apiFetch('/health'),
         apiFetch('/tasks'),
         apiFetch('/audit-logs'),
         apiFetch('/completion'),
+        apiFetch('/evaluator/proposals'),
+        apiFetch('/evaluator/status'),
       ]);
 
       state.health = h;
       state.tasks = t.tasks || [];
       state.auditLogs = l.audit_logs || [];
       state.completion = c || mockData.completion;
+      state.proposals = p?.proposals || [];
+      state.evaluatorStatus = e || null;
 
       if (!state.selectedTaskId && state.tasks.length > 0) {
         state.selectedTaskId = state.tasks[0].task_id;
@@ -1043,62 +1069,239 @@ function renderTabContent(selectedTask) {
       </div>
     `;
   } else if (state.activeTab === 'agents') {
+    const pendingProps = (state.proposals || []).filter(p => p.status === 'PENDING_APPROVAL');
+    const decidedProps = (state.proposals || []).filter(p => p.status !== 'PENDING_APPROVAL');
+    const activeSpecialists = state.health?.active_specialists || [];
+    const activeNames = new Set(['Reem', 'Zaks', ...activeSpecialists.map(s => s.name)]);
+
+    const dormantRoles = [
+      { name: 'Sirfaraz', role: 'Central Command', arc: 'Nick Fury' },
+      { name: 'Khadija', role: 'Chief Architecture', arc: 'Tony Stark' },
+      { name: 'Maryam', role: 'Tech Research & Integration', arc: 'Shuri' },
+      { name: 'Hadia', role: 'Research & Innovation', arc: 'Shuri' },
+      { name: 'Hussain', role: 'Analysis & Reasoning', arc: 'Bruce Banner' },
+      { name: 'Hadi', role: 'Planning & Strategy', arc: 'Peter Parker' },
+      { name: 'Aroosh', role: 'Quality Assurance', arc: 'Shuri' },
+      { name: 'Hania', role: 'Product Strategy & UX', arc: 'Pepper Potts' },
+      { name: 'Zara', role: 'Security & Risk', arc: 'Natasha Romanoff' },
+      { name: 'Hasan', role: 'Infrastructure & DevOps', arc: 'James Rhodes' },
+      { name: 'Huzaifa', role: 'Docs & Communications', arc: 'Phil Coulson' },
+      { name: 'Umer', role: 'Coordination & Approval', arc: 'Happy Hogan' },
+      { name: 'Musab', role: 'Specialist Reserve', arc: 'Unassigned' },
+    ].filter(r => !activeNames.has(r.name));
+
     return `
-      <div class="p-6 bg-[#0a101d] border border-[#172238] rounded-xl space-y-4 font-mono text-xs">
-        <div class="flex justify-between items-center pb-3 border-b border-[#172238]">
-          <span class="font-bold text-slate-200">COMPANY ROLE ROSTER (ORGANIC EVOLUTION: 2 WORKERS)</span>
-          <span class="text-emerald-400 text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">2 ACTIVE / 13 REFERENCE</span>
+      <div class="space-y-6 font-mono text-xs">
+        <!-- Top Action Bar -->
+        <div class="p-4 bg-[#0a101d] border border-[#172238] rounded-xl flex flex-col md:flex-row justify-between items-center gap-3">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-slate-100 text-sm">COMPANY ROLE ROSTER & ADAPTIVE SPECIALIZATION</span>
+              <span class="text-emerald-400 text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">
+                ${state.health?.active_worker_count || 2} ACTIVE / 15 REGISTERED
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5">Specialists are dynamically proposed by the Specialization Evaluator and require explicit owner signature to activate.</p>
+          </div>
+          <button onclick="window.triggerWorkloadEvaluation()" class="px-4 py-2 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 font-bold text-xs whitespace-nowrap transition-all shadow-md">
+            ⚡ Run Workload Evaluation
+          </button>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <!-- Worker 1 -->
-          <div class="p-3.5 rounded bg-cyan-950/30 border border-cyan-500/50">
-            <div class="flex justify-between font-bold text-cyan-300 mb-1">
-              <span>Reem</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800">ACTIVE (Worker 1)</span>
+
+        <!-- Pending Spawning Proposals (Owner Review Required) -->
+        <div class="p-6 bg-[#0a101d] border ${pendingProps.length > 0 ? 'border-amber-500/50 bg-amber-950/10' : 'border-[#172238]'} rounded-xl space-y-4">
+          <div class="flex justify-between items-center pb-3 border-b border-[#172238]">
+            <div class="flex items-center space-x-2">
+              <span class="text-amber-400 text-sm">🚨</span>
+              <h2 class="font-bold text-slate-100 uppercase tracking-wider">
+                Pending Spawning Proposals (${pendingProps.length})
+              </h2>
             </div>
-            <div class="text-slate-300 text-[11px]">Construction & Programming</div>
-            <div class="text-slate-500 text-[10px]">Archetype: Riri Williams • Tier 2</div>
+            <span class="text-[10px] px-2 py-0.5 rounded font-bold ${pendingProps.length > 0 ? 'bg-amber-950 text-amber-300 border border-amber-800 animate-pulse' : 'bg-slate-900 text-slate-500'}">
+              ${pendingProps.length > 0 ? 'OWNER APPROVAL REQUIRED' : 'NO PENDING PROPOSALS'}
+            </span>
           </div>
 
-          <!-- Worker 2 (Auditor) -->
-          <div class="p-3.5 rounded bg-emerald-950/30 border border-emerald-500/50">
-            <div class="flex justify-between font-bold text-emerald-300 mb-1">
-              <span>Zaks</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-800">ACTIVE (Auditor)</span>
-            </div>
-            <div class="text-slate-300 text-[11px]">Independent Audit & Oversight</div>
-            <div class="text-slate-500 text-[10px]">Archetype: Vision • Tier 1 Safe</div>
-          </div>
-
-          <!-- Dormant References -->
-          ${[
-            { name: 'Sirfaraz', role: 'Central Command', arc: 'Nick Fury' },
-            { name: 'Khadija', role: 'Chief Architecture', arc: 'Tony Stark' },
-            { name: 'Maryam', role: 'Tech Research & Integration', arc: 'Shuri' },
-            { name: 'Hadia', role: 'Research & Innovation', arc: 'Shuri' },
-            { name: 'Hussain', role: 'Analysis & Reasoning', arc: 'Bruce Banner' },
-            { name: 'Hadi', role: 'Planning & Strategy', arc: 'Peter Parker' },
-            { name: 'Aroosh', role: 'Quality Assurance', arc: 'Shuri' },
-            { name: 'Hania', role: 'Product Strategy & UX', arc: 'Pepper Potts' },
-            { name: 'Zara', role: 'Security & Risk', arc: 'Natasha Romanoff' },
-            { name: 'Hasan', role: 'Infrastructure & DevOps', arc: 'James Rhodes' },
-            { name: 'Huzaifa', role: 'Docs & Communications', arc: 'Phil Coulson' },
-            { name: 'Umer', role: 'Coordination & Approval', arc: 'Happy Hogan' },
-            { name: 'Musab', role: 'Specialist Reserve', arc: 'Unassigned' },
-          ]
-            .map(
-              (r) => `
-            <div class="p-3.5 rounded bg-[#070b14] border border-[#141e33] opacity-60">
-              <div class="flex justify-between font-bold text-slate-300 mb-1">
-                <span>${r.name}</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-500">DORMANT</span>
-              </div>
-              <div class="text-slate-400 text-[11px]">${r.role}</div>
-              <div class="text-slate-600 text-[10px]">Archetype: ${r.arc}</div>
+          ${
+            pendingProps.length === 0
+              ? `
+            <div class="p-4 rounded-lg bg-[#070b14] border border-[#172238] text-slate-400 flex items-center justify-between">
+              <span>✓ All active tasks are successfully serviced by current worker capacity. No specialist spawning required.</span>
+              <span class="text-emerald-400 text-xs">Capacity Nominal</span>
             </div>
           `
-            )
-            .join('')}
+              : `
+            <div class="space-y-4">
+              ${pendingProps
+                .map(
+                  (p) => `
+                <div class="p-5 rounded-xl bg-[#070b14] border border-amber-500/40 space-y-3">
+                  <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 pb-2 border-b border-[#1a2742]">
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-base font-bold text-amber-300">${p.target_role_name}</span>
+                        <span class="text-xs text-slate-300 font-medium">(${p.target_role_title})</span>
+                        <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-800">Archetype: ${p.archetype}</span>
+                      </div>
+                      <div class="text-[10px] text-slate-500 font-mono mt-0.5">Proposal ID: ${p.proposal_id} • Recommended Tier: <strong class="text-slate-300">${p.recommended_permission_tier}</strong></div>
+                    </div>
+                    <div class="flex items-center space-x-2 self-end md:self-auto">
+                      <button onclick="window.rejectProposal('${p.proposal_id}')" class="px-3 py-1.5 rounded-lg bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-300 font-bold text-xs transition-all">
+                        ✕ Reject
+                      </button>
+                      <button onclick="window.approveProposal('${p.proposal_id}')" class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-lg shadow-emerald-500/20">
+                        ✓ Approve & Activate Role
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Justification -->
+                  <div class="p-3 rounded-lg bg-[#0c1424] border border-[#1b2b4a] text-slate-300">
+                    <div class="text-[10px] text-amber-400 font-bold uppercase mb-1">Empirical Workload Justification</div>
+                    <p class="leading-relaxed text-xs">${p.empirical_justification}</p>
+                  </div>
+
+                  <!-- 3-Way Trade-off Breakdown -->
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
+                    <div class="p-3 rounded bg-[#090f1e] border border-[#162238]">
+                      <div class="text-slate-500 uppercase text-[9px] font-bold mb-1">1. Prompt Refinement</div>
+                      <div class="text-slate-400">${p.tradeoff_analysis.option_1_prompt_refinement}</div>
+                    </div>
+                    <div class="p-3 rounded bg-[#090f1e] border border-[#162238]">
+                      <div class="text-slate-500 uppercase text-[9px] font-bold mb-1">2. Worker 1 Reuse</div>
+                      <div class="text-slate-400">${p.tradeoff_analysis.option_2_worker_reuse}</div>
+                    </div>
+                    <div class="p-3 rounded bg-[#090f1e] border border-amber-900/40">
+                      <div class="text-amber-400 uppercase text-[9px] font-bold mb-1">3. Specialist Spawning</div>
+                      <div class="text-slate-300 font-medium">${p.tradeoff_analysis.option_3_specialist_spawning}</div>
+                    </div>
+                  </div>
+
+                  <!-- Tools Whitelist -->
+                  <div class="flex items-center space-x-2 text-[10px]">
+                    <span class="text-slate-500 uppercase">Authorized Tools:</span>
+                    <div class="flex flex-wrap gap-1">
+                      ${p.recommended_tools.map((t) => `<span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">${t}</span>`).join('')}
+                    </div>
+                  </div>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          `
+          }
+        </div>
+
+        <!-- Active Specialist Team -->
+        <div class="p-6 bg-[#0a101d] border border-[#172238] rounded-xl space-y-4">
+          <div class="flex justify-between items-center pb-3 border-b border-[#172238]">
+            <h2 class="font-bold text-slate-200">ACTIVE WORKERS & SPECIALISTS (${2 + activeSpecialists.length})</h2>
+            <span class="text-emerald-400 text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">ALL PASSING $0.00 INVARIANT</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <!-- Worker 1 -->
+            <div class="p-4 rounded-lg bg-cyan-950/20 border border-cyan-500/50 space-y-2">
+              <div class="flex justify-between font-bold text-cyan-300">
+                <span>Reem</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800">ACTIVE (Worker 1)</span>
+              </div>
+              <div class="text-slate-300 text-xs">Construction & Programming</div>
+              <div class="text-slate-500 text-[10px]">Archetype: Riri Williams • Tier 2</div>
+              <div class="pt-2 border-t border-[#172238] flex flex-wrap gap-1">
+                ${['read_file', 'write_file', 'list_dir', 'run_command'].map((t) => `<span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 text-[9px]">${t}</span>`).join('')}
+              </div>
+            </div>
+
+            <!-- Auditor -->
+            <div class="p-4 rounded-lg bg-emerald-950/20 border border-emerald-500/50 space-y-2">
+              <div class="flex justify-between font-bold text-emerald-300">
+                <span>Zaks</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-800">ACTIVE (Auditor)</span>
+              </div>
+              <div class="text-slate-300 text-xs">Independent Audit & Oversight</div>
+              <div class="text-slate-500 text-[10px]">Archetype: Vision • Tier 1 Safe</div>
+              <div class="pt-2 border-t border-[#172238] flex flex-wrap gap-1">
+                ${['read_file', 'list_dir'].map((t) => `<span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 text-[9px]">${t}</span>`).join('')}
+              </div>
+            </div>
+
+            <!-- Dynamically Activated Specialists -->
+            ${activeSpecialists
+              .map(
+                (spec) => `
+              <div class="p-4 rounded-lg bg-purple-950/20 border border-purple-500/50 space-y-2">
+                <div class="flex justify-between font-bold text-purple-300">
+                  <span>${spec.name}</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">ACTIVE SPECIALIST</span>
+                </div>
+                <div class="text-slate-300 text-xs">${spec.role}</div>
+                <div class="text-slate-500 text-[10px]">Archetype: ${spec.archetype} • ${spec.permission_tier}</div>
+                <div class="pt-2 border-t border-[#172238] flex flex-wrap gap-1">
+                  ${(spec.allowed_tools || []).map((t) => `<span class="px-1.5 py-0.5 rounded bg-slate-900 text-purple-300 text-[9px]">${t}</span>`).join('')}
+                </div>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+        </div>
+
+        <!-- Decided Proposals History -->
+        ${
+          decidedProps.length > 0
+            ? `
+          <div class="p-6 bg-[#0a101d] border border-[#172238] rounded-xl space-y-3">
+            <div class="flex justify-between items-center pb-2 border-b border-[#172238]">
+              <h2 class="font-bold text-slate-200 uppercase tracking-wider">Historical Specialist Decisions (${decidedProps.length})</h2>
+              <span class="text-slate-500 text-[10px]">IMMUTABLE AUDIT TRAIL</span>
+            </div>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              ${decidedProps
+                .map(
+                  (dp) => `
+                <div class="p-3 rounded-lg bg-[#070b14] border border-[#162238] flex justify-between items-center text-xs">
+                  <div>
+                    <span class="font-bold text-slate-200">${dp.target_role_name} (${dp.target_role_title})</span>
+                    <span class="text-slate-500 ml-2">• ${dp.decision_reason || 'Decided by Owner'}</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-[9px] px-2 py-0.5 rounded font-bold ${dp.status === 'APPROVED' ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-950 text-rose-300 border border-rose-800'}">${dp.status}</span>
+                    <span class="text-slate-500 text-[10px]">${new Date(dp.decided_at || dp.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+            : ''
+        }
+
+        <!-- Dormant Reference Roles -->
+        <div class="p-6 bg-[#0a101d] border border-[#172238] rounded-xl space-y-4">
+          <div class="flex justify-between items-center pb-3 border-b border-[#172238]">
+            <h2 class="font-bold text-slate-400 uppercase tracking-wider">Dormant Reference Roles (${dormantRoles.length})</h2>
+            <span class="text-slate-500 text-[10px]">ORGANIZATIONAL BLUEPRINT</span>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            ${dormantRoles
+              .map(
+                (r) => `
+              <div class="p-3.5 rounded bg-[#070b14] border border-[#141e33] opacity-60">
+                <div class="flex justify-between font-bold text-slate-300 mb-1">
+                  <span>${r.name}</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-500">DORMANT</span>
+                </div>
+                <div class="text-slate-400 text-[11px]">${r.role}</div>
+                <div class="text-slate-600 text-[10px]">Archetype: ${r.arc}</div>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
         </div>
       </div>
     `;
@@ -1341,6 +1544,82 @@ window.submitTaskForm = (e) => {
   const title = document.getElementById('modal-title')?.value || '';
   const desc = document.getElementById('modal-desc')?.value || '';
   handleCreateTask(title, desc, {});
+};
+
+window.approveProposal = async (proposalId) => {
+  const reason = prompt("Enter approval justification or note:", "Approved by Product Owner") || "Approved by Product Owner";
+  if (state.mode === 'demo') {
+    const p = state.proposals.find((x) => x.proposal_id === proposalId);
+    if (p) {
+      p.status = 'APPROVED';
+      p.decided_at = new Date().toISOString();
+      p.decision_reason = reason;
+      if (!state.health.active_specialists) state.health.active_specialists = [];
+      state.health.active_specialists.push({
+        name: p.target_role_name,
+        role: p.target_role_title,
+        archetype: p.archetype,
+        status: 'ACTIVE',
+        activated_at: p.decided_at,
+        allowed_tools: p.recommended_tools,
+        permission_tier: p.recommended_permission_tier,
+      });
+      state.health.active_worker_count++;
+    }
+  } else {
+    try {
+      await apiFetch(`/evaluator/proposals/${encodeURIComponent(proposalId)}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ approver: 'Zak', reason }),
+      });
+      await refreshData();
+    } catch (err) {
+      alert(`Approval Failed: ${err.message}`);
+    }
+  }
+  render();
+};
+
+window.rejectProposal = async (proposalId) => {
+  const reason = prompt("Enter rejection note:", "Rejected by Product Owner") || "Rejected by Product Owner";
+  if (state.mode === 'demo') {
+    const p = state.proposals.find((x) => x.proposal_id === proposalId);
+    if (p) {
+      p.status = 'REJECTED';
+      p.decided_at = new Date().toISOString();
+      p.decision_reason = reason;
+    }
+  } else {
+    try {
+      await apiFetch(`/evaluator/proposals/${encodeURIComponent(proposalId)}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ decider: 'Zak', reason }),
+      });
+      await refreshData();
+    } catch (err) {
+      alert(`Rejection Failed: ${err.message}`);
+    }
+  }
+  render();
+};
+
+window.triggerWorkloadEvaluation = async () => {
+  if (state.mode === 'demo') {
+    alert("Workload telemetry nominal in Demo mode.");
+  } else {
+    try {
+      const res = await apiFetch('/evaluator/evaluate', { method: 'POST', body: JSON.stringify({}) });
+      if (res.action_taken === 'AUTHORED_PROPOSAL') {
+        alert(`New Spawning Proposal authored for ${res.proposal.target_role_name} (${res.proposal.target_role_title})! Review it in Role Roster.`);
+      } else {
+        alert(`Evaluator: ${res.message || res.action_taken}`);
+      }
+      await refreshData();
+    } catch (err) {
+      alert(`Evaluation Error: ${err.message}`);
+    }
+  }
+  render();
 };
 
 // Initialize App
