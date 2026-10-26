@@ -560,7 +560,7 @@ function render() {
               { id: 'tasks', label: `Workload (${state.tasks.length})` },
               { id: 'workspace', label: 'Workspace Files' },
               { id: 'logs', label: 'Audit Trail' },
-              { id: 'agents', label: 'Role Roster (1/15)' },
+              { id: 'agents', label: `Role Roster (${state.health?.active_worker_count || 2}/15)` },
               { id: 'settings', label: 'System Invariants' },
             ]
               .map(
@@ -1001,21 +1001,33 @@ function renderTabContent(selectedTask) {
     return `
       <div class="p-6 bg-[#0a101d] border border-[#172238] rounded-xl space-y-4 font-mono text-xs">
         <div class="flex justify-between items-center pb-3 border-b border-[#172238]">
-          <span class="font-bold text-slate-200">COMPANY ROLE ROSTER (ORGANIC EVOLUTION BASELINE)</span>
-          <span class="text-emerald-400 text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">1 ACTIVE / 14 REFERENCE</span>
+          <span class="font-bold text-slate-200">COMPANY ROLE ROSTER (ORGANIC EVOLUTION: 2 WORKERS)</span>
+          <span class="text-emerald-400 text-[10px] px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">2 ACTIVE / 13 REFERENCE</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Worker 1 -->
           <div class="p-3.5 rounded bg-cyan-950/30 border border-cyan-500/50">
             <div class="flex justify-between font-bold text-cyan-300 mb-1">
               <span>Reem</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800">ACTIVE</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800">ACTIVE (Worker 1)</span>
             </div>
             <div class="text-slate-300 text-[11px]">Construction & Programming</div>
-            <div class="text-slate-500 text-[10px]">Archetype: Riri Williams</div>
+            <div class="text-slate-500 text-[10px]">Archetype: Riri Williams • Tier 2</div>
           </div>
+
+          <!-- Worker 2 (Auditor) -->
+          <div class="p-3.5 rounded bg-emerald-950/30 border border-emerald-500/50">
+            <div class="flex justify-between font-bold text-emerald-300 mb-1">
+              <span>Zaks</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 border border-emerald-800">ACTIVE (Auditor)</span>
+            </div>
+            <div class="text-slate-300 text-[11px]">Independent Audit & Oversight</div>
+            <div class="text-slate-500 text-[10px]">Archetype: Vision • Tier 1 Safe</div>
+          </div>
+
+          <!-- Dormant References -->
           ${[
             { name: 'Sirfaraz', role: 'Central Command', arc: 'Nick Fury' },
-            { name: 'Zaks', role: 'Audit & Oversight', arc: 'Vision' },
             { name: 'Khadija', role: 'Chief Architecture', arc: 'Tony Stark' },
             { name: 'Maryam', role: 'Tech Research & Integration', arc: 'Shuri' },
             { name: 'Hadia', role: 'Research & Innovation', arc: 'Shuri' },

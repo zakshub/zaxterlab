@@ -32,11 +32,23 @@ class APIHandlerService:
         self.boundary_guard = boundary_guard
 
     def get_health(self) -> dict[str, Any]:
-        """System health and spend guard status."""
+        """System health, dual-worker status, and spend guard status."""
+        auditor_info = None
+        if self.engine.auditor:
+            auditor_info = {
+                "agent_id": self.engine.auditor.agent.agent_id,
+                "name": self.engine.auditor.agent.name,
+                "role": self.engine.auditor.agent.role,
+                "status": "ACTIVE",
+                "permission_tier": self.engine.auditor.agent.permission_tier.value,
+                "allowed_tools": self.engine.auditor.agent.allowed_tools,
+            }
+
         return {
             "status": "healthy",
-            "version": "0.1.0",
+            "version": "0.2.0-phase2",
             "mode": "offline",
+            "active_worker_count": 2 if self.engine.auditor else 1,
             "worker": {
                 "agent_id": self.engine.agent.agent_id,
                 "name": self.engine.agent.name,
@@ -45,6 +57,7 @@ class APIHandlerService:
                 "max_iterations": self.engine.agent.max_iterations,
                 "allowed_tools": self.engine.agent.allowed_tools,
             },
+            "auditor": auditor_info,
             "spend_guard": {
                 "authorized_spend_usd": self.boundary_guard.spend.authorized_spend_usd,
                 "cumulative_spent_usd": self.boundary_guard.spend.cumulative_spent_usd,

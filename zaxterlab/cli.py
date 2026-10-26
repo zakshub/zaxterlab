@@ -6,6 +6,7 @@ from pathlib import Path
 
 from zaxterlab.api.server import create_api_server
 from zaxterlab.db.sqlite import SQLiteStore
+from zaxterlab.engine.auditor import AuditorEngine
 from zaxterlab.engine.worker import Worker1Engine, get_default_worker1_definition
 from zaxterlab.models.mock import MockProvider
 from zaxterlab.security.guard import BoundaryGuard
@@ -30,7 +31,15 @@ def main() -> None:
     tools = ToolRegistry(guard)
     agent = get_default_worker1_definition()
     model = MockProvider()
-    engine = Worker1Engine(agent=agent, model=model, boundary_guard=guard, store=store, tool_registry=tools)
+    auditor = AuditorEngine(model=model, boundary_guard=guard, store=store, tool_registry=tools)
+    engine = Worker1Engine(
+        agent=agent,
+        model=model,
+        boundary_guard=guard,
+        store=store,
+        tool_registry=tools,
+        auditor=auditor,
+    )
 
     server = create_api_server(store=store, engine=engine, boundary_guard=guard, host=args.host, port=args.port)
 

@@ -2,6 +2,7 @@
 
 from .types import (
     AgentDefinition,
+    AuditDecision,
     PermissionTier,
     Session,
     SessionStatus,
@@ -15,6 +16,7 @@ from .types import (
 
 __all__ = [
     "AgentDefinition",
+    "AuditDecision",
     "PermissionTier",
     "Session",
     "SessionStatus",

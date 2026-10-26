@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from zaxterlab.contracts.types import (
     AgentDefinition,
+    AuditDecision,
     PermissionTier,
     Session,
     SessionStatus,
@@ -19,6 +20,7 @@ from zaxterlab.contracts.types import (
     utc_now_iso,
 )
 from zaxterlab.db.sqlite import SQLiteStore
+from zaxterlab.engine.auditor import AuditorEngine, get_default_auditor_definition
 from zaxterlab.models.base import CompletionRequest, CompletionResponse, ModelProvider
 from zaxterlab.security.guard import (
     BoundaryGuard,
@@ -54,12 +56,16 @@ class Worker1Engine:
         boundary_guard: BoundaryGuard,
         store: SQLiteStore,
         tool_registry: ToolRegistry,
+        auditor: Optional[AuditorEngine] = None,
+        max_refinement_cycles: int = 3,
     ) -> None:
         self.agent = agent
         self.model = model
         self.boundary_guard = boundary_guard
         self.store = store
         self.tool_registry = tool_registry
+        self.auditor = auditor
+        self.max_refinement_cycles = max_refinement_cycles
 
     def execute_task(
         self,
@@ -163,14 +169,72 @@ class Worker1Engine:
             )
 
             if should_complete:
-                session.status = SessionStatus.COMPLETED
-                task.status = TaskStatus.COMPLETED
-                task.result_summary = response_text or eval_outcome
-                task.updated_at = utc_now_iso()
-                self.store.save_task(task)
-                self.store.save_session(session)
-                self.store.log_audit("TASK_COMPLETED", task.task_id, {"session_id": session.session_id})
-                break
+                if self.auditor:
+                    task.status = TaskStatus.REVIEW
+                    task.updated_at = utc_now_iso()
+                    self.store.save_task(task)
+
+                    decision = self.auditor.audit_session(task, session)
+                    coord_tokens = decision.token_usage.total_tokens
+                    prod_tokens = session.total_token_usage.total_tokens
+                    overhead_pct = round((coord_tokens / max(prod_tokens, 1)) * 100, 2)
+
+                    session.state_data["coordination_tokens"] = coord_tokens
+                    session.state_data["coordination_overhead_pct"] = overhead_pct
+                    session.state_data["auditor_feedback"] = decision.feedback
+
+                    if decision.approved:
+                        session.status = SessionStatus.COMPLETED
+                        task.status = TaskStatus.COMPLETED
+                        task.result_summary = f"[Audited: Approved] {response_text or eval_outcome}"
+                        task.updated_at = utc_now_iso()
+                        self.store.save_task(task)
+                        self.store.save_session(session)
+                        self.store.log_audit(
+                            "TASK_COMPLETED",
+                            task.task_id,
+                            {"session_id": session.session_id, "audited_by": self.auditor.agent.agent_id, "overhead_pct": overhead_pct},
+                        )
+                        break
+                    else:
+                        refinement_cycles = session.state_data.get("refinement_cycles", 0) + 1
+                        session.state_data["refinement_cycles"] = refinement_cycles
+
+                        if refinement_cycles > self.max_refinement_cycles:
+                            session.status = SessionStatus.FAILED
+                            task.status = TaskStatus.BLOCKED
+                            task.result_summary = (
+                                f"[Blocked by Auditor after {self.max_refinement_cycles} cycles] {decision.feedback}"
+                            )
+                            task.updated_at = utc_now_iso()
+                            self.store.save_task(task)
+                            self.store.save_session(session)
+                            self.store.log_audit(
+                                "TASK_BLOCKED_BY_AUDITOR",
+                                task.task_id,
+                                {"feedback": decision.feedback, "cycles": refinement_cycles},
+                            )
+                            break
+                        else:
+                            task.status = TaskStatus.REJECTED
+                            task.result_summary = f"[Audit Rejected - Cycle {refinement_cycles}] {decision.feedback}"
+                            task.updated_at = utc_now_iso()
+                            self.store.save_task(task)
+                            self.store.log_audit(
+                                "TASK_REJECTED_FOR_REFINEMENT",
+                                task.task_id,
+                                {"feedback": decision.feedback, "cycle": refinement_cycles},
+                            )
+                            # Allow loop to continue and refine work
+                else:
+                    session.status = SessionStatus.COMPLETED
+                    task.status = TaskStatus.COMPLETED
+                    task.result_summary = response_text or eval_outcome
+                    task.updated_at = utc_now_iso()
+                    self.store.save_task(task)
+                    self.store.save_session(session)
+                    self.store.log_audit("TASK_COMPLETED", task.task_id, {"session_id": session.session_id})
+                    break
 
             if should_fail:
                 session.status = SessionStatus.FAILED
@@ -226,6 +290,8 @@ class Worker1Engine:
     def _stage_read(self, task: Task, session: Session) -> str:
         """Read context: task parameters, recent step traces, and session state."""
         recent_context = []
+        if session.state_data.get("auditor_feedback"):
+            recent_context.append(f"Auditor (Zaks) Feedback: {session.state_data['auditor_feedback']}")
         if session.step_traces:
             last_trace = session.step_traces[-1]
             recent_context.append(f"Previous Step ({last_trace.step_number}) Plan: {last_trace.plan}")

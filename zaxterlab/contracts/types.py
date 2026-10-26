@@ -20,6 +20,7 @@ class TaskStatus(str, Enum):
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
     REVIEW = "REVIEW"
+    REJECTED = "REJECTED"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     SUSPENDED = "SUSPENDED"
@@ -116,6 +117,36 @@ class ToolResult:
             success=bool(data.get("success", False)),
             output=str(data.get("output", "")),
             error=data.get("error"),
+        )
+
+
+@dataclass
+class AuditDecision:
+    """Structured decision returned by the independent Auditor (Zaks)."""
+
+    approved: bool
+    feedback: str
+    findings: list[str] = field(default_factory=list)
+    token_usage: TokenUsage = field(default_factory=TokenUsage)
+    audited_at: str = field(default_factory=utc_now_iso)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "approved": self.approved,
+            "feedback": self.feedback,
+            "findings": list(self.findings),
+            "token_usage": self.token_usage.to_dict(),
+            "audited_at": self.audited_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> AuditDecision:
+        return cls(
+            approved=bool(data.get("approved", False)),
+            feedback=str(data.get("feedback", "")),
+            findings=list(data.get("findings", [])),
+            token_usage=TokenUsage.from_dict(data.get("token_usage", {})),
+            audited_at=str(data.get("audited_at", utc_now_iso())),
         )
 
 
