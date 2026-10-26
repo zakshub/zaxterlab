@@ -42,6 +42,24 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
         """Handle preflight CORS requests."""
         self._set_headers(204)
 
+    def do_HEAD(self) -> None:
+        """Handle HEAD requests by sending headers without body."""
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path.rstrip("/")
+        if path.startswith("/api"):
+            self._set_headers(200)
+            return
+
+        frontend_dir = Path("/root/zakxterlab/frontend/public")
+        req_file = path.lstrip("/")
+        if not req_file or req_file == "":
+            req_file = "index.html"
+        target_file = (frontend_dir / req_file).resolve()
+        if target_file.exists() and target_file.is_file():
+            self._set_headers(200)
+        else:
+            self._set_headers(404)
+
     def _send_json(self, data: Any, status_code: int = 200) -> None:
         payload = json.dumps(data, indent=2).encode("utf-8")
         self._set_headers(status_code)
