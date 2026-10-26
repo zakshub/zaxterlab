@@ -236,6 +236,44 @@ class TestAPIServer(unittest.TestCase):
             content_js = resp.read().decode("utf-8")
             self.assertIn("ZaxterLab Operations Dashboard", content_js)
 
+    def test_saas_project_launch_and_workspace_artifacts(self):
+        """Test launching an end-to-end SaaS project generates real departmental artifacts in workspace."""
+        payload = {
+            "name": "SaaS Test Billing API",
+            "domain": "Fintech / B2B SaaS",
+            "requirements": "Multi-tenant auth tokens, subscription plan tiers, and usage quotas.",
+        }
+        status, res = self._http_post("/api/project/saas", payload)
+        self.assertEqual(status, 201)
+        self.assertTrue(res["success"])
+        self.assertEqual(res["project_name"], "SaaS Test Billing API")
+        self.assertTrue(res["qa_verified"])
+        self.assertEqual(res["spend_usd"], 0.0)
+
+        # Verify all 5 files were created in the sandboxed workspace
+        expected_files = ["PRD.md", "ARCHITECTURE.md", "app.py", "test_suite.py", "AUDIT_REPORT.md"]
+        self.assertEqual(res["files_created"], expected_files)
+
+        slug = res["project_slug"]
+        project_dir = os.path.join(self.workspace_dir, "projects", slug)
+        self.assertTrue(os.path.isdir(project_dir))
+
+        for filename in expected_files:
+            file_path = os.path.join(project_dir, filename)
+            self.assertTrue(os.path.isfile(file_path), f"File {filename} was not found at {file_path}")
+
+        # Verify reading PRD file content via API
+        status, file_res = self._http_get(f"/api/workspace/file-content?path=projects/{slug}/PRD.md")
+        self.assertEqual(status, 200)
+        self.assertIn("Product Requirements Document", file_res["content"])
+        self.assertIn("Hadi (Planning & Requirements Specialist)", file_res["content"])
+
+        # Verify reading AUDIT_REPORT via API
+        status, audit_res = self._http_get(f"/api/workspace/file-content?path=projects/{slug}/AUDIT_REPORT.md")
+        self.assertEqual(status, 200)
+        self.assertIn("Chief Auditor: Zaks", audit_res["content"])
+        self.assertIn("APPROVED", audit_res["content"])
+
 
 if __name__ == "__main__":
     unittest.main()

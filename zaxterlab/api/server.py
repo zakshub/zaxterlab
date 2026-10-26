@@ -226,6 +226,9 @@ class ZaxterLabHTTPHandler(BaseHTTPRequestHandler):
             elif path == "/api/pipeline/run":
                 self._send_json(self.service.run_pipeline(body))
 
+            elif path == "/api/project/saas":
+                self._send_json(self.service.launch_saas_project(body), status_code=201)
+
             elif path.startswith("/api/tasks/") and path.endswith("/execute"):
                 parts = path.split("/")
                 # /api/tasks/{task_id}/execute

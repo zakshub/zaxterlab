@@ -30,6 +30,10 @@ const state = {
   selectedFileContent: null,
   isTaskModalOpen: false,
   isPipelineModalOpen: false,
+  isSaasModalOpen: false,
+  saasProjectRunning: false,
+  lastSaasResult: null,
+  activeFileViewer: null,
   isTourOpen: false,
   tourStep: 0,
   errorBanner: null,
@@ -576,6 +580,94 @@ window.closePipelineModal = () => {
   render();
 };
 
+window.openSaasModal = () => {
+  state.isSaasModalOpen = true;
+  render();
+};
+
+window.closeSaasModal = () => {
+  state.isSaasModalOpen = false;
+  render();
+};
+
+window.closeFileViewer = () => {
+  state.activeFileViewer = null;
+  render();
+};
+
+window.viewWorkspaceFile = async (relPath) => {
+  try {
+    showToast(`Loading ${relPath}...`);
+    const res = await apiFetch(`/workspace/file-content?path=${encodeURIComponent(relPath)}`);
+    state.activeFileViewer = {
+      path: relPath,
+      content: res.content,
+      size: res.size_bytes,
+    };
+    render();
+  } catch (err) {
+    showToast(`Failed to load file: ${err.message}`, true);
+  }
+};
+
+window.selectSaasPreset = (presetKey) => {
+  const presets = {
+    billing: {
+      name: 'SaaS Multi-Tenant Billing & Quota Engine',
+      domain: 'FinTech / B2B SaaS',
+      reqs: 'Multi-tenant isolation, bearer token authentication, Free/Pro/Enterprise subscription tiers with automated quota decrementing and plan upgrade circuits.',
+    },
+    crm: {
+      name: 'Autonomous CRM Lead Pipeline Engine',
+      domain: 'Sales Tech / CRM SaaS',
+      reqs: 'Lead ingestion webhook, stage transitions (Lead -> Qualified -> Negotiation -> Won), customer contact directory, and hermetic activity audit logging.',
+    },
+    support: {
+      name: 'Customer Support SLA & Ticket Engine',
+      domain: 'Customer Success SaaS',
+      reqs: 'Customer ticket creation, priority queuing (P0/P1/P2), automated agent assignment, SLA expiration tracking, and resolution verification.',
+    },
+  };
+  const sel = presets[presetKey];
+  if (!sel) return;
+  const nameEl = document.getElementById('saas-name');
+  const domEl = document.getElementById('saas-domain');
+  const reqsEl = document.getElementById('saas-reqs');
+  if (nameEl) nameEl.value = sel.name;
+  if (domEl) domEl.value = sel.domain;
+  if (reqsEl) reqsEl.value = sel.reqs;
+};
+
+window.submitSaasProject = async (e) => {
+  e.preventDefault();
+  const nameEl = document.getElementById('saas-name');
+  const domEl = document.getElementById('saas-domain');
+  const reqsEl = document.getElementById('saas-reqs');
+  const name = nameEl ? nameEl.value.trim() : '';
+  const domain = domEl ? domEl.value.trim() : 'B2B SaaS';
+  const reqs = reqsEl ? reqsEl.value.trim() : '';
+
+  if (!name) return alert('Project name is required.');
+
+  state.saasProjectRunning = true;
+  render();
+  try {
+    showToast('Dispatching SaaS project across all company departments (BA -> Arch -> Dev -> QA -> Audit)...');
+    const res = await apiFetch('/project/saas', {
+      method: 'POST',
+      body: JSON.stringify({ name, domain, requirements: reqs }),
+    });
+    state.lastSaasResult = res;
+    showToast(`Project created successfully! 5 departmental deliverables generated in ${res.workspace_relative_path}`);
+    await refreshData();
+  } catch (err) {
+    showToast(`Project execution error: ${err.message}`, true);
+  } finally {
+    state.saasProjectRunning = false;
+    render();
+  }
+};
+
 window.submitNewTask = async (e) => {
   e.preventDefault();
   const title = document.getElementById('new-task-title').value.trim();
@@ -815,6 +907,10 @@ function render() {
 
           <!-- Top Right Controls -->
           <div class="flex items-center gap-3">
+            <button onclick="window.openSaasModal()" class="bg-[#0b1326] hover:bg-[#131d36] text-white font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all">
+              <span class="text-[#b4f53c] text-sm">✦</span> Launch SaaS Project
+            </button>
+
             <button onclick="window.startVirtualTour()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 font-semibold px-3.5 py-1.5 rounded-lg text-xs shadow-sm flex items-center gap-1.5 transition-all">
               <span class="text-amber-500 text-sm">✦</span> Virtual Tour
             </button>
@@ -846,6 +942,8 @@ function render() {
     <!-- Modals -->
     ${state.isTaskModalOpen ? renderTaskModal() : ''}
     ${state.isPipelineModalOpen ? renderPipelineModal() : ''}
+    ${state.isSaasModalOpen ? renderSaasModal() : ''}
+    ${state.activeFileViewer ? renderFileViewerModal() : ''}
     ${state.isTourOpen ? renderTourModal() : ''}
   `;
 }
@@ -1009,6 +1107,9 @@ function renderOverviewTab() {
                     Run pipeline →
                   </button>`
             }
+            <button onclick="window.openSaasModal()" class="text-xs bg-white/10 hover:bg-white/20 text-white font-semibold px-3 py-2.5 rounded-lg transition-all flex items-center gap-1.5 border border-white/10">
+              <span class="text-[#b4f53c]">✦</span> New SaaS Studio
+            </button>
             <button onclick="window.startVirtualTour()" class="text-xs text-slate-300 hover:text-white underline underline-offset-4 font-medium">
               Take Virtual Tour
             </button>
@@ -1288,7 +1389,10 @@ function renderTasksTab() {
           <p class="text-xs text-slate-500">Deterministic local worker execution with independent audit loop.</p>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="window.openPipelineModal()" class="bg-[#0b1326] hover:bg-[#131d36] text-white font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm">
+          <button onclick="window.openSaasModal()" class="bg-[#0b1326] hover:bg-[#131d36] text-white font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm">
+            <span class="text-[#b4f53c]">✦</span> Launch SaaS Studio
+          </button>
+          <button onclick="window.openPipelineModal()" class="bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm">
             ⚡ Run DAG Pipeline
           </button>
           <button onclick="window.openTaskModal()" class="bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-semibold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm">
@@ -1854,6 +1958,7 @@ function renderHelpTab() {
         ${renderHelpSubNavItem('faq', '4. Frequently Asked Questions')}
         ${renderHelpSubNavItem('archetypes', '5. Marvel Role Archetypes')}
         ${renderHelpSubNavItem('cli', '6. CLI Commands & Recipes')}
+        ${renderHelpSubNavItem('saas-flow', '7. SaaS Departmental Workflow')}
       </div>
 
       <!-- Sub-Section Content -->
@@ -2111,6 +2216,129 @@ function renderHelpSectionContent(section) {
         </div>
       `;
 
+    case 'saas-flow':
+      return `
+        <div>
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">SaaS Company Workflow & Departmentalization Guide</h3>
+              <p class="text-xs text-slate-500 mt-0.5">How to hand off a business idea, where files are saved, and how the 5 departments collaborate.</p>
+            </div>
+            <button onclick="window.openSaasModal()" class="bg-[#0b1326] hover:bg-[#131d36] text-white font-semibold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-sm">
+              <span class="text-[#b4f53c]">✦</span> Launch Project Studio
+            </button>
+          </div>
+
+          <!-- Section 1: Where to Input & Where it Saves -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="flex items-center gap-2 mb-2 font-bold text-slate-900 text-xs">
+                <span class="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">📥</span>
+                <span>1. Where to Submit a Project?</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Click <strong>"✦ Launch SaaS Project"</strong> in the top header or on the <strong>Tasks & Runs</strong> page. Enter your project title (e.g. <em>"Multi-Tenant Billing Engine"</em>), choose your SaaS vertical, and provide a prompt/brief describing your desired features.
+              </p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <div class="flex items-center gap-2 mb-2 font-bold text-slate-900 text-xs">
+                <span class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">💾</span>
+                <span>2. Where are Files Saved on Disk?</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                All generated code, specs, and reports are written directly to your local file system under:
+                <code class="block font-mono text-[11px] bg-white p-2 rounded border border-slate-200 text-emerald-800 mt-1.5 font-semibold select-all">./workspace/projects/&lt;project_slug&gt;/</code>
+                On Windows: <code class="font-mono text-[10px] text-slate-500">zakxterlab\\workspace\\projects\\&lt;project_slug&gt;\\</code>
+              </p>
+            </div>
+          </div>
+
+          <!-- Section 2: Departmental Lifecycle Diagram -->
+          <div class="mt-6">
+            <h4 class="text-sm font-bold text-slate-900 mb-3">3. How the 5 Company Departments Execute Your Project</h4>
+            <div class="space-y-3">
+              <div class="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">1</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-blue-950 font-bold">Product Lead & Business Analyst (Hadi)</strong>
+                    <span class="px-2 py-0.5 rounded text-[10px] bg-white border border-blue-200 text-blue-800 font-mono">Outputs: PRD.md</span>
+                  </div>
+                  <p class="text-xs text-blue-900 mt-1 leading-relaxed">
+                    Analyzes your customer prompt, extracts user personas, determines subscription tier quotas, defines functional & non-functional requirements, and establishes explicit acceptance criteria.
+                  </p>
+                </div>
+              </div>
+
+              <div class="p-3.5 bg-indigo-50/60 rounded-xl border border-indigo-100 flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">2</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-indigo-950 font-bold">Principal Systems Architect (Sirfaraz)</strong>
+                    <span class="px-2 py-0.5 rounded text-[10px] bg-white border border-indigo-200 text-indigo-800 font-mono">Outputs: ARCHITECTURE.md</span>
+                  </div>
+                  <p class="text-xs text-indigo-900 mt-1 leading-relaxed">
+                    Designs the system topology, drafts the SQLite durability schemas (DDL for tenants, tokens, usage records), specifies REST contracts, and designs quota boundary guards.
+                  </p>
+                </div>
+              </div>
+
+              <div class="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-100 flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-emerald-950 font-bold">Core Software Engineer (Reem)</strong>
+                    <span class="px-2 py-0.5 rounded text-[10px] bg-white border border-emerald-200 text-emerald-800 font-mono">Outputs: app.py</span>
+                  </div>
+                  <p class="text-xs text-emerald-900 mt-1 leading-relaxed">
+                    Implements the executable Python codebase using standard library components: multi-tenant isolation, bearer token generation and verification, quota consumption checks, and plan upgrade logic.
+                  </p>
+                </div>
+              </div>
+
+              <div class="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100 flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">4</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-purple-950 font-bold">QA Automation Specialist (Aroosh)</strong>
+                    <span class="px-2 py-0.5 rounded text-[10px] bg-white border border-purple-200 text-purple-800 font-mono">Outputs: test_suite.py</span>
+                  </div>
+                  <p class="text-xs text-purple-900 mt-1 leading-relaxed">
+                    Authors rigorous unittest assertions verifying tenant isolation, token authentication, and quota limits, and executes the test runner to prove all tests pass.
+                  </p>
+                </div>
+              </div>
+
+              <div class="p-3.5 bg-slate-900 text-white rounded-xl border border-slate-800 flex items-start gap-3">
+                <span class="w-6 h-6 rounded-full bg-[#b4f53c] text-[#0b1326] flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">5</span>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-white font-bold">Chief Systems & Boundary Auditor (Zaks)</strong>
+                    <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 border border-slate-700 text-[#b4f53c] font-mono">Outputs: AUDIT_REPORT.md</span>
+                  </div>
+                  <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                    Verifies constitutional invariants: confirms strictly USD $0.00 spent, validates workspace boundary isolation, reviews QA test results, and issues the official clearance sign-off certificate.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: How to View & Test Delivered Projects -->
+          <div class="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <h4 class="text-sm font-bold text-slate-900 mb-2">4. Inspecting and Running the Delivered Code</h4>
+            <ul class="text-xs text-slate-600 space-y-1.5 list-disc list-inside">
+              <li>In the ZaxterLab UI: Click any generated file inside the delivered project drawer to inspect its full content instantly.</li>
+              <li>In Windows File Explorer: Open <code class="font-mono bg-white px-1 py-0.5 rounded border border-slate-200">workspace\\projects\\&lt;project_slug&gt;</code> to view and edit files in VS Code or Notepad.</li>
+              <li>In Terminal / Command Prompt: Run the project test suite directly with:
+                <pre class="bg-slate-900 text-slate-200 p-2.5 rounded-lg font-mono text-[11px] mt-1">python -m unittest workspace/projects/&lt;project_slug&gt;/test_suite.py</pre>
+              </li>
+            </ul>
+          </div>
+        </div>
+      `;
+
     default:
       return '';
   }
@@ -2258,6 +2486,211 @@ function renderPipelineModal() {
             ${state.pipelineRunning ? 'Executing Pipeline...' : 'Start Execution'}
           </button>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSaasModal() {
+  const result = state.lastSaasResult;
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 my-8">
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+          <div class="flex items-center gap-2.5">
+            <span class="w-8 h-8 rounded-xl bg-[#0b1326] text-[#b4f53c] flex items-center justify-center font-bold text-sm">✦</span>
+            <div>
+              <h3 class="text-base font-bold text-slate-900 tracking-tight">Autonomous SaaS Company Studio</h3>
+              <p class="text-xs text-slate-500">Departmental Intake: Brief → PRD → Architecture → Code → QA → Audit</p>
+            </div>
+          </div>
+          <button onclick="window.closeSaasModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+        </div>
+
+        ${
+          result
+            ? `
+          <!-- Execution Result & Deliverables -->
+          <div class="mt-5 p-5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+                <span class="text-sm font-bold text-emerald-950">Project Delivered & Verified Hermetically</span>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200">$0.00 SPEND LOCKED</span>
+            </div>
+            
+            <p class="text-xs text-emerald-900">
+              All 5 virtual company departments collaborated and produced real verified deliverables inside your workspace:
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+              <div onclick="window.viewWorkspaceFile('${result.workspace_relative_path}/PRD.md')" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 cursor-pointer transition-all shadow-xs group">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-900 group-hover:text-emerald-700">1. PRD.md</span>
+                  <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Hadi (BA)</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Personas, Functional Requirements, Quotas, Acceptance Criteria</p>
+              </div>
+
+              <div onclick="window.viewWorkspaceFile('${result.workspace_relative_path}/ARCHITECTURE.md')" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 cursor-pointer transition-all shadow-xs group">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-900 group-hover:text-emerald-700">2. ARCHITECTURE.md</span>
+                  <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Sirfaraz (Arch)</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Component Topology, SQLite Schema DDL, REST Endpoints</p>
+              </div>
+
+              <div onclick="window.viewWorkspaceFile('${result.workspace_relative_path}/app.py')" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 cursor-pointer transition-all shadow-xs group">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-900 group-hover:text-emerald-700">3. app.py</span>
+                  <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Reem (Dev)</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Executable Python SaaS Engine, Token Auth, Tenant Quota Enforcer</p>
+              </div>
+
+              <div onclick="window.viewWorkspaceFile('${result.workspace_relative_path}/test_suite.py')" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 cursor-pointer transition-all shadow-xs group">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-slate-900 group-hover:text-emerald-700">4. test_suite.py</span>
+                  <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">Aroosh (QA)</span>
+                </div>
+                <p class="text-[11px] text-slate-500 mt-1">Hermetic Unit Tests for Tenant Isolation, Auth & Over-Quota</p>
+              </div>
+            </div>
+
+            <div onclick="window.viewWorkspaceFile('${result.workspace_relative_path}/AUDIT_REPORT.md')" class="p-3 bg-white rounded-xl border border-emerald-200 hover:border-emerald-400 cursor-pointer transition-all shadow-xs group">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-900 group-hover:text-emerald-700">5. AUDIT_REPORT.md (Chief Auditor Sign-off)</span>
+                <span class="text-[10px] bg-[#0b1326] text-[#b4f53c] px-2 py-0.5 rounded font-mono font-bold">Zaks (Auditor)</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">Zero-Spend invariant audit, containment verification, test execution output.</p>
+            </div>
+
+            <div class="p-3 bg-white/80 rounded-xl border border-emerald-200/60 text-[11px] text-slate-600 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-slate-700">Saved on disk at:</span>
+                <code class="font-mono text-emerald-800 ml-1 font-semibold">${result.workspace_relative_path}</code>
+              </div>
+              <button onclick="state.lastSaasResult = null; render();" class="text-xs text-emerald-800 hover:underline font-semibold">
+                Launch Another Project →
+              </button>
+            </div>
+          </div>
+        `
+            : `
+          <!-- Departmental Pipeline Flow Graphic -->
+          <div class="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Automated Departmental Chain</div>
+            <div class="grid grid-cols-5 gap-2 text-center text-[10px]">
+              <div class="p-2 bg-white rounded-xl border border-slate-200">
+                <div class="w-5 h-5 mx-auto rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center mb-1">1</div>
+                <strong class="text-slate-800 block truncate">Hadi</strong>
+                <span class="text-slate-400">BA & PRD</span>
+              </div>
+              <div class="p-2 bg-white rounded-xl border border-slate-200">
+                <div class="w-5 h-5 mx-auto rounded-full bg-indigo-100 text-indigo-800 font-bold flex items-center justify-center mb-1">2</div>
+                <strong class="text-slate-800 block truncate">Sirfaraz</strong>
+                <span class="text-slate-400">Architecture</span>
+              </div>
+              <div class="p-2 bg-white rounded-xl border border-slate-200">
+                <div class="w-5 h-5 mx-auto rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center mb-1">3</div>
+                <strong class="text-slate-800 block truncate">Reem</strong>
+                <span class="text-slate-400">Engineering</span>
+              </div>
+              <div class="p-2 bg-white rounded-xl border border-slate-200">
+                <div class="w-5 h-5 mx-auto rounded-full bg-purple-100 text-purple-800 font-bold flex items-center justify-center mb-1">4</div>
+                <strong class="text-slate-800 block truncate">Aroosh</strong>
+                <span class="text-slate-400">QA Testing</span>
+              </div>
+              <div class="p-2 bg-white rounded-xl border border-slate-200">
+                <div class="w-5 h-5 mx-auto rounded-full bg-[#0b1326] text-[#b4f53c] font-bold flex items-center justify-center mb-1">5</div>
+                <strong class="text-slate-800 block truncate">Zaks</strong>
+                <span class="text-slate-400">Chief Audit</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="mt-4">
+            <span class="text-xs font-bold text-slate-700">Quick SaaS Presets:</span>
+            <div class="flex flex-wrap gap-2 mt-1.5">
+              <button type="button" onclick="window.selectSaasPreset('billing')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium transition-all">
+                💳 Multi-Tenant Billing Engine
+              </button>
+              <button type="button" onclick="window.selectSaasPreset('crm')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium transition-all">
+                📊 CRM Lead Pipeline Engine
+              </button>
+              <button type="button" onclick="window.selectSaasPreset('support')" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-medium transition-all">
+                🎫 Customer Support Ticket SLA
+              </button>
+            </div>
+          </div>
+
+          <!-- Intake Form -->
+          <form onsubmit="window.submitSaasProject(event)" class="mt-4 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Project Name *</label>
+                <input id="saas-name" type="text" required value="SaaS Multi-Tenant Billing & Quota Engine" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 transition-all font-medium" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Domain / Category</label>
+                <input id="saas-domain" type="text" value="FinTech / B2B SaaS" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 transition-all font-medium" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Customer Requirements & Feature Brief *</label>
+              <textarea id="saas-reqs" rows="3" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-slate-800 transition-all leading-relaxed font-sans">Multi-tenant isolation, bearer token authentication, Free/Pro/Enterprise subscription tiers with automated quota decrementing and plan upgrade circuits.</textarea>
+              <p class="text-[11px] text-slate-400 mt-1">Specify what you want your virtual company team to build. They will handle BA, Architecture, Code, QA, and Audit.</p>
+            </div>
+
+            <!-- Invariant Lock Note -->
+            <div class="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-900 flex items-center justify-between">
+              <span><strong>Spend Guarantee:</strong> $0.00 Authorized Spend Enforced. Code is generated and verified entirely in local sandbox.</span>
+              <span class="font-bold font-mono">USD $0.00</span>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button type="button" onclick="window.closeSaasModal()" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 text-xs font-semibold">Cancel</button>
+              <button type="submit" ${state.saasProjectRunning ? 'disabled' : ''} class="px-5 py-2.5 rounded-lg bg-[#b4f53c] hover:bg-[#a1e828] text-[#0b1326] font-bold text-xs shadow-sm flex items-center gap-2 transition-all">
+                ${state.saasProjectRunning ? '<svg class="animate-spin h-3.5 w-3.5 text-[#0b1326]" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Executing Across Departments...' : '✦ Dispatch to Company Departments'}
+              </button>
+            </div>
+          </form>
+        `
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderFileViewerModal() {
+  const viewer = state.activeFileViewer;
+  if (!viewer) return '';
+  return `
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200">
+        <!-- Header -->
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 rounded-t-2xl">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-lg bg-[#0b1326] text-white flex items-center justify-center text-xs font-mono font-bold">📄</span>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 font-mono">${viewer.path}</h3>
+              <p class="text-[11px] text-slate-400 font-mono">${viewer.size} bytes • UTF-8</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="navigator.clipboard.writeText(state.activeFileViewer.content); showToast('Copied file content to clipboard!');" class="px-3 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition-all">
+              Copy Content
+            </button>
+            <button onclick="window.closeFileViewer()" class="text-slate-400 hover:text-slate-600 text-base font-bold px-2 py-1">✕</button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 overflow-y-auto flex-1 font-mono text-xs text-slate-100 bg-slate-900 rounded-b-2xl whitespace-pre-wrap leading-relaxed selection:bg-lime-400 selection:text-slate-950">${escapeHtml(viewer.content)}</div>
       </div>
     </div>
   `;
