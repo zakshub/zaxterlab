@@ -496,28 +496,32 @@ window.triggerRunPipeline = async () => {
   try {
     showToast('Starting multi-worker DAG pipeline execution...');
     if (state.mode === 'live') {
+      const buildId = `pipe_build_${Date.now().toString(16).slice(-4)}`;
+      const qaId = `pipe_qa_${Date.now().toString(16).slice(-4)}`;
       const res = await apiFetch('/pipeline/run', {
         method: 'POST',
         body: JSON.stringify({
           task_definitions: [
             {
-              task_id: `pipe_build_${Date.now().toString(16).slice(-4)}`,
+              task_id: buildId,
               title: 'Automated Pipeline: Build Step',
               description: 'Generate modular functions and write test harness.',
               assigned_specialist: 'Reem',
               depends_on: [],
             },
             {
-              task_id: `pipe_qa_${Date.now().toString(16).slice(-4)}`,
+              task_id: qaId,
               title: 'Automated Pipeline: QA Verification',
               description: 'Run automated assertions and verify boundary security.',
               assigned_specialist: 'Aroosh',
-              depends_on: [`pipe_build_${Date.now().toString(16).slice(-4)}`],
+              depends_on: [buildId],
             },
           ],
         }),
       });
-      showToast(`Pipeline complete: ${res.succeeded_count} succeeded, ${res.failed_count} failed.`);
+      const completedCount = res.completed ?? res.succeeded_count ?? 0;
+      const failedCount = res.failed ?? res.failed_count ?? 0;
+      showToast(`Pipeline complete: ${completedCount} succeeded, ${failedCount} failed.`);
     } else {
       showToast(`Pipeline execution simulated successfully in demo mode.`);
     }

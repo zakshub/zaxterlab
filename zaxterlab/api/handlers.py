@@ -170,11 +170,30 @@ class APIHandlerService:
     def run_pipeline(self, data: dict[str, Any]) -> dict[str, Any]:
         """Execute a graph of tasks according to topological dependencies."""
         task_ids = list(data.get("task_ids", []))
+
+        # Accept dynamic task definitions from client/API
+        task_defs = data.get("task_definitions", [])
+        for td in task_defs:
+            t = Task(
+                task_id=td.get("task_id", f"pipe_{uuid.uuid4().hex[:8]}"),
+                title=td.get("title", "Pipeline Step"),
+                description=td.get("description", ""),
+                assigned_specialist=td.get("assigned_specialist", "Reem"),
+                depends_on=td.get("depends_on", []),
+                status=TaskStatus.QUEUED,
+                created_at=utc_now_iso(),
+            )
+            self.store.save_task(t)
+            task_ids.append(t.task_id)
+
         if not task_ids:
             pending = self.store.list_tasks(TaskStatus.SUBMITTED) + self.store.list_tasks(TaskStatus.QUEUED)
             task_ids = [t.task_id for t in pending]
 
-        return self.orchestrator.run_pipeline(task_ids)
+        res = self.orchestrator.run_pipeline(task_ids)
+        res["succeeded_count"] = res.get("completed", 0)
+        res["failed_count"] = res.get("failed", 0)
+        return res
 
     def suspend_session(self, session_id: str) -> dict[str, Any]:
         """Suspend an active session."""
